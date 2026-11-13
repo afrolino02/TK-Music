@@ -107,6 +107,8 @@ fun SettingsScreen() {
             items(outputs) { output ->
                 ListItem(headlineContent = { Text(output) }, leadingContent = { Icon(Icons.Filled.Speaker, null) })
             }
+            item { SectionTitle("Acerca de") }
+            item { Credits() }
             item { Spacer(Modifier.size(24.dp)) }
         }
     }
@@ -155,6 +157,23 @@ private fun ProviderSection(provider: ProviderInfo) {
 }
 
 /** Tu nombre para el saludo, el tema de color y si la app va clara u oscura. */
+/** TK-Music is built on Sonora; this credits its author and links to the original project. */
+@Composable
+private fun Credits() {
+    val context = LocalContext.current
+    fun open(url: String) = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    ListItem(
+        headlineContent = { Text("TK-Music ${BuildConfig.VERSION_NAME}") },
+        supportingContent = { Text("Powered by Sonora · creado por Pavel Olizko") },
+        modifier = Modifier.focusRing().clickable { open("https://github.com/sonorahq/sonora") },
+    )
+    ListItem(
+        headlineContent = { Text("Código y descargas") },
+        supportingContent = { Text("github.com/rprofe358/TK-Music · Licencia GPL-3.0") },
+        modifier = Modifier.focusRing().clickable { open("https://github.com/rprofe358/TK-Music") },
+    )
+}
+
 @Composable
 private fun LookSection() {
     var name by remember { mutableStateOf(Store.userName) }

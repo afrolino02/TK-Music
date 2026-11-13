@@ -13,7 +13,8 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "0.1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
+        // En una versión publicada (etiqueta v1.2.3) el nombre es el de la etiqueta.
+        versionName = System.getenv("TK_VERSION") ?: "0.1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
@@ -42,7 +43,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     packaging { jniLibs { useLegacyPackaging = true } }
 }
 

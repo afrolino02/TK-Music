@@ -4,8 +4,13 @@ name: iOS
 # Se firma al instalarla con Sideloadly/AltStore desde Windows.
 on:
   push:
-    branches: [ios, "fase-*"]
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
+
+# Para subir el IPA a la versión publicada (Releases) cuando se empuja una etiqueta v*.
+permissions:
+  contents: write
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -56,22 +61,33 @@ jobs:
 
       - name: App de iPhone
         run: |
+          VERSION=0.1.$GITHUB_RUN_NUMBER
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           cd ios
           xcodebuild -project SonoraMobile.xcodeproj -scheme SonoraMobile \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             build
 
       - name: Empaquetar .ipa
         run: |
           mkdir -p Payload
           cp -R ios/build/Build/Products/Release-iphoneos/SonoraMobile.app Payload/
-          zip -qry SonoraMobile.ipa Payload
-          ls -lh SonoraMobile.ipa
+          zip -qry TK-Music.ipa Payload
+          ls -lh TK-Music.ipa
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SonoraMobile-ipa
-          path: SonoraMobile.ipa
+          name: TK-Music-ipa
+          path: TK-Music.ipa
           retention-days: 30
+
+      - name: Publicar en Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TK-Music.ipa
+          name: TK-Music ${{ github.ref_name }}
+          generate_release_notes: true

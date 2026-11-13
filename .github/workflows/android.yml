@@ -1,11 +1,16 @@
 name: Android
 
-# Compila el motor de Sonora para Android (arm64) y arma un APK firmado con la clave fija del
+# Compila el motor (Sonora) para Android (arm64 y armv7) y arma un APK firmado con la clave fija del
 # repo, para que cada versión se instale encima de la anterior.
 on:
   push:
-    branches: [android, "android-*"]
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
+
+# Para subir el APK a la versión publicada (Releases) cuando se empuja una etiqueta v*.
+permissions:
+  contents: write
 
 concurrency:
   group: android-${{ github.ref }}
@@ -95,15 +100,25 @@ jobs:
 
       - name: APK
         working-directory: android
-        run: gradle assembleRelease --no-daemon --stacktrace
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export TK_VERSION="${GITHUB_REF_NAME#v}"; fi
+          gradle assembleRelease --no-daemon --stacktrace
 
       - name: Empaquetar APK
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk SonoraMobile.apk
-          ls -lh SonoraMobile.apk
+          cp android/app/build/outputs/apk/release/app-release.apk TK-Music.apk
+          ls -lh TK-Music.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SonoraMobile-apk
-          path: SonoraMobile.apk
+          name: TK-Music-apk
+          path: TK-Music.apk
           retention-days: 30
+
+      - name: Publicar en Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TK-Music.apk
+          name: TK-Music ${{ github.ref_name }}
+          generate_release_notes: true

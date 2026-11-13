@@ -1,227 +1,60 @@
 <div align="center">
 
-<img src="./.github/readme-icon.svg" alt="" width="60" height="60">
+<img src="./ios/SonoraMobile/Assets.xcassets/AppIcon.appiconset/icon-1024.png" alt="" width="96" height="96">
 
-<h1>Sonora</h1>
+<h1>TK-Music</h1>
 
-<p align="center">
-  <a href="https://sonorahq.org/changelog">Changelog</a>
-  ·
-  <a href="https://sonorahq.org/docs">Docs</a>
-  ·
-  <a href="https://sonorahq.org/docs/roadmap">Roadmap</a>
-  ·
-  <a href="https://sonorahq.org/faq">FAQ</a>
-</p>
+**Tu música en iPhone, iPad, Android, Android TV y Android Auto.**
 
-[![Build](https://img.shields.io/github/actions/workflow/status/sonorahq/sonora/release.yml?style=flat-square&label=build)](https://github.com/sonorahq/sonora/actions/workflows/release.yml)
-[![License](https://img.shields.io/github/license/sonorahq/sonora?style=flat-square&label=license&cacheSeconds=3600)](./COPYING)
-![Installs](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fsonora-stats.nolight.dev%2Fcount&query=%24.count&label=Installs&color=blue&style=flat-square)
-\
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/a8N8Tx23rV)
-[![Matrix](https://img.shields.io/badge/Matrix-000000?style=for-the-badge&logo=matrix&logoColor=white)](https://matrix.to/#/#sonora:nolight.dev)
-[![Support us](https://img.shields.io/badge/Support_us-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/R5A72AGYNZ)
+<sub>Powered by <a href="https://github.com/sonorahq/sonora">Sonora</a></sub>
 
-### A native, familiar music streaming client
+[![Android](https://img.shields.io/github/actions/workflow/status/rprofe358/TK-Music/android.yml?branch=main&style=flat-square&label=android)](https://github.com/rprofe358/TK-Music/actions/workflows/android.yml)
+[![iOS](https://img.shields.io/github/actions/workflow/status/rprofe358/TK-Music/ios.yml?branch=main&style=flat-square&label=ios)](https://github.com/rprofe358/TK-Music/actions/workflows/ios.yml)
+[![Licencia](https://img.shields.io/badge/licencia-GPL--3.0--or--later-blue?style=flat-square)](./COPYING)
 
-Stream from your favorite services and play local files — all in one **native** app.
 </div>
 
-<div align="center">
-    <table>
-      <tr>
-        <td colspan="2">
-          <img width="1556" height="967" alt="image" src="https://github.com/user-attachments/assets/c797cb19-9631-45b0-91b6-695f28f4143d" />
-        </td>
-      </tr>
-      <tr>
-        <td width="50%">
-          <img width="1555" height="966" alt="image" src="https://github.com/user-attachments/assets/b556bcd0-2823-485f-83f3-41e1099fdc45" />
-        </td>
-        <td width="50%">
-          <img width="1555" height="966" alt="image" src="https://github.com/user-attachments/assets/f27400ab-9264-4d82-9a70-e0a60e0c3a5f" />
-        </td>
-      </tr>
-    </table>
-</div>
-<div align="center">
-    <sub>
-      Adaptive themes are optional. Everything is (or will be) customizable.
-    </sub>
-</div>
+## Descargas
 
-> [!IMPORTANT]
-> **Sonora is not a piracy tool.**
->
-> Sonora is not a platform for obtaining or sharing copyrighted material. We will not implement any functions that can be used to export decrypted streams, DRM licenses, content keys, or to convert protected streams into media files.
->
-> Sonora is not designed to circumvent subscriptions or other restrictions put in place by music streaming platforms. If the service demands that you have a valid subscription in order to play back their tracks, so will Sonora.
->
-> Features aimed at ripping, downloading, distributing, or gaining access to protected streaming content are out of scope for the project.
+| Plataforma | Archivo | Cómo instalar |
+|---|---|---|
+| Android, Android TV y Android Auto | [**TK-Music.apk**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music.apk) | Abre el APK en el dispositivo y permite instalar apps de origen desconocido. |
+| iPhone y iPad | [**TK-Music.ipa**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music.ipa) | Instálalo con Sideloadly o AltStore (con una cuenta gratuita se renueva cada 7 días). |
 
-## Installation
+Todas las versiones están en [Releases](https://github.com/rprofe358/TK-Music/releases).
 
-### macOS
+## Qué trae
 
-Install with [Brew](https://brew.sh/):
+- Spotify, YouTube Music y tu música descargada en una sola app.
+- Inicio con saludo, recomendación destacada, mixes diarios según lo que escuchas y géneros y estados de ánimo para explorar.
+- Búsqueda predictiva; al tocar una canción suenan otras parecidas después.
+- Reproductor con fondo desenfocado, letras sincronizadas tipo karaoke, visualizador, modo horizontal y aleatorio por género.
+- Cola editable: arrastrar para reordenar, quitar una canción, vaciarla o agregar canciones.
+- Temas de color personalizables, claro u oscuro.
+- Diseño para tablets, Android TV (control remoto) y Android Auto.
+
+## Publicar una versión nueva
 
 ```sh
-brew install --cask nolight132/tap/sonora
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
-After installing (thanks Apple):
+GitHub Actions compila el APK y el IPA y los sube a una nueva versión en Releases. Cada envío a
+`main` también compila y deja los archivos en la pestaña Actions.
 
-```sh
-xattr -dr com.apple.quarantine /Applications/Sonora.app
-```
+## Créditos
 
-Or install the [disk image](https://github.com/sonorahq/sonora/releases/latest), which updates itself.
+TK-Music es una versión móvil personal construida sobre **[Sonora](https://github.com/sonorahq/sonora)**,
+el cliente de música nativo creado por **Pavel Olizko** y la comunidad de
+[sonorahq](https://github.com/sonorahq). El motor de reproducción, los proveedores de música y la
+mayor parte del código vienen de Sonora. Gracias por hacerlo libre.
 
-### Linux
+El README original de Sonora está en [README-SONORA.md](./README-SONORA.md) y las licencias de
+terceros en [THIRD-PARTY.md](./THIRD-PARTY.md).
 
-#### Arch
+## Licencia
 
-Install from the AUR with your AUR helper of choice:
-
-```sh
-yay -S sonora-bin
-```
-
-Or:
-
-```sh
-yay -S sonora
-```
-
-#### Flatpak
-
-```sh
-flatpak install --user https://sonorahq.github.io/sonora/sonora.flatpakref
-```
-
-#### AppImage
-
-Download from the [latest release](https://github.com/sonorahq/sonora/releases/latest), make it executable and run
-it:
-
-```sh
-chmod +x sonora-*.AppImage
-./sonora-*.AppImage
-```
-
-### Nix
-
-Add either of those inputs:
-
-```nix
-inputs.sonora.url = "github:sonorahq/sonora";
-```
-
-```text
-inputs.sonora.packages.${system}.default     (prebuilt where available, else from source)
-inputs.sonora.packages.${system}.sonora      (same as default)
-inputs.sonora.packages.${system}.sonora-bin  (prebuilt, x86_64-linux, aarch64-linux, aarch64-darwin)
-inputs.sonora.packages.${system}.sonora-src  (always built from source)
-```
-
-Building from source on macOS needs Xcode added to the Nix store, because the shaders compile with Apple's Metal compiler.
-
-Configuration with Home Manager is provided by the module under `programs.sonora`.
-
-### Windows
-
-#### Installer
-
-Download and run the [installer](https://github.com/sonorahq/sonora/releases/latest/download/Sonora-Setup.exe),
-or the [ARM installer](https://github.com/sonorahq/sonora/releases/latest/download/Sonora-Setup-arm64.exe)
-on Windows on ARM.
-
-#### Portable
-
-Download the latest `windows-msvc.exe` for your architecture from [Releases](https://github.com/sonorahq/sonora/releases/latest).
-
-### Nightly
-
-[Nightly builds](https://github.com/sonorahq/sonora/releases/tag/nightly) are available.
-
-```sh
-brew install --cask nolight132/tap/sonora-nightly
-yay -S sonora-nightly-bin
-nix run github:sonorahq/sonora/nightly
-```
-
-## Community
-
-Feel free to join our [Discord](https://discord.gg/a8N8Tx23rV) server and [Matrix](https://matrix.to/#/#sonora:nolight.dev) space.
-Discord is the primary one, but we do have a Matrix bridge.
-
-## Translations
-
-<!-- i18n:start -->
-
-| Language | Translated | Coverage |
-| --- | --- | --- |
-| English (`en-US`) | 1278/1278 | 100% |
-| Deutsch (`de`) | 1106/1278 | 87% |
-| Español (`es`) | 1106/1278 | 87% |
-| Français (`fr`) | 1107/1278 | 87% |
-| Italiano (`it`) | 1106/1278 | 87% |
-| Bahasa Indonesia (`id`) | 1106/1278 | 87% |
-| 日本語 (`ja`) | 1106/1278 | 87% |
-| Русский (`ru`) | 1207/1278 | 94% |
-| Українська (`uk`) | 1108/1278 | 87% |
-| Polski (`pl`) | 1108/1278 | 87% |
-| Čeština (`cs`) | 1106/1278 | 87% |
-| Português (Brasil) (`pt-BR`) | 1106/1278 | 87% |
-| 简体中文 (`zh-CN`) | 1106/1278 | 87% |
-| Türkçe (`tr`) | 1106/1278 | 87% |
-| Shqip (`sq`) | 1106/1278 | 87% |
-
-<!-- i18n:end -->
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=sonorahq%2Fsonora&type=date&logscale=&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=sonorahq/sonora&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=sonorahq/sonora&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=sonorahq/sonora&type=date&legend=top-left" />
- </picture>
-</a>
-
-## Credits
-
-Sonora is built with the help of some incredible open-source projects, including:
-
-- [Zed](https://github.com/zed-industries/zed) — a wonderful editor (~~ab~~)used by all core team members. Conveniently provides `gpui` — their native Rust rendering stack.
-- [librespot](https://github.com/librespot-org/librespot) — Spotify playback and library integration.
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — certain YouTube ideas implemented in [ytmusic-rs](https://github.com/sonorahq/ytmusic-rs) :)
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by
-[SignPath Foundation](https://signpath.org).
-
-The Windows executable and installer are built by GitHub Actions from this repository and signed
-through SignPath.
-
-- Reviewers: members of sonorahq
-- Approvers: [@nolight132](https://github.com/nolight132)
-
-## License
-
-Copyright (C) 2026 Sonora Contributors.
-
-Sonora is free software, released under the [GNU General Public License version
-3 or later](COPYING).
-
-Sonora is an unofficial client and is not affiliated with, endorsed by, or
-sponsored by Spotify AB.
-
-The binary also embeds the [Inter](https://github.com/rsms/inter) typeface (SIL
-Open Font License 1.1) and four interchangeable icon sets:
-[Lucide](https://lucide.dev) (ISC), [Iconoir](https://iconoir.com) (MIT),
-[Remix Icon](https://remixicon.com) 4.8.0 (Apache 2.0) and the
-[Solar](https://www.figma.com/community/file/1166831539721848736) Linear set
-(CC BY 4.0, by 480 Design). Each pack keeps its licence beside its files in
-`assets/icons`. `THIRD-PARTY.md` lists every bundled dependency.
+Igual que Sonora, TK-Music se distribuye bajo la licencia
+[GNU GPL v3.0 o posterior](./COPYING). Puedes usar, estudiar, modificar y compartir el código,
+siempre que las versiones que distribuyas mantengan la misma licencia y publiquen su código.

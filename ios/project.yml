@@ -25,6 +25,8 @@ targets:
       path: SonoraMobile/Info.plist
       properties:
         CFBundleDisplayName: TK-Music
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         # La carpeta de Sonora aparece en la app Archivos, para copiar ahí la música.

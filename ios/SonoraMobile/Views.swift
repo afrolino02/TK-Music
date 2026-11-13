@@ -311,6 +311,11 @@ actor ImagePipeline {
 
 // MARK: - Cuentas
 
+/// The version shown in Settings, from the bundle (set by CI from the release tag).
+private var appVersion: String {
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+}
+
 struct AccountsView: View {
     @EnvironmentObject private var store: Store
     @State private var outputs: [String] = []
@@ -351,6 +356,20 @@ struct AccountsView: View {
                     LabeledContent("Motor (Sonora)", value: engineVersion())
                     ForEach(outputs, id: \.self) { output in
                         Label(output, systemImage: "hifispeaker")
+                    }
+                }
+                Section("Acerca de") {
+                    Link(destination: URL(string: "https://github.com/sonorahq/sonora")!) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("TK-Music \(appVersion)").foregroundStyle(.primary)
+                            Text("Powered by Sonora · creado por Pavel Olizko").font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    Link(destination: URL(string: "https://github.com/rprofe358/TK-Music")!) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Código y descargas").foregroundStyle(.primary)
+                            Text("github.com/rprofe358/TK-Music · Licencia GPL-3.0").font(.footnote).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
