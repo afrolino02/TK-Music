@@ -331,12 +331,42 @@ object Store : EngineListener {
         openLocal()
     }
 
+    /** Las carpetas que la persona quitó: no se miran, ni lo que tienen dentro. */
+    var hiddenFolders by mutableStateOf(preferences.getStringSet("local.hidden", null)?.sorted() ?: emptyList())
+        private set
+
+    /** Si se dejan fuera las notas de voz y los audios de WhatsApp (por defecto, sí). */
+    var skipWhatsapp by mutableStateOf(preferences.getBoolean("local.whatsapp", true))
+        private set
+
+    /** Quita una carpeta de la música: la agregada a mano se olvida, la que halló Android se oculta. */
     fun removeLocalFolder(path: String) {
-        preferences.edit().putStringSet("local.extra", extraFolders - path).apply()
+        if (path in extraFolders) {
+            preferences.edit().putStringSet("local.extra", extraFolders - path).apply()
+        } else {
+            hiddenFolders = (hiddenFolders + path).distinct().sorted()
+            preferences.edit().putStringSet("local.hidden", hiddenFolders.toSet()).apply()
+        }
         openLocal()
     }
 
-    fun isExtraFolder(path: String) = path in extraFolders
+    /** Vuelve a mirar una carpeta que se había quitado. */
+    fun showLocalFolder(path: String) {
+        hiddenFolders = hiddenFolders - path
+        preferences.edit().putStringSet("local.hidden", hiddenFolders.toSet()).apply()
+        openLocal()
+    }
+
+    fun changeSkipWhatsapp(skip: Boolean) {
+        skipWhatsapp = skip
+        preferences.edit().putBoolean("local.whatsapp", skip).apply()
+        openLocal()
+    }
+
+    /** Si la carpeta queda fuera por una regla: quitada a mano, dentro de una quitada o de WhatsApp. */
+    private fun leftOut(path: String) =
+        hiddenFolders.any { path == it || path.startsWith("$it/") } ||
+            (skipWhatsapp && path.split('/').any { it.contains("whatsapp", ignoreCase = true) })
 
     /**
      * Las carpetas donde hay música, según el índice de Android (el mismo que usan las apps de
@@ -359,7 +389,7 @@ object Store : EngineListener {
                 }
             }
         }
-        val all = (found + extraFolders).map { it.trimEnd('/') }.distinct().sorted()
+        val all = (found + extraFolders).map { it.trimEnd('/') }.distinct().filterNot(::leftOut).sorted()
         val outer = mutableListOf<String>()
         for (path in all) if (outer.none { path == it || path.startsWith("$it/") }) outer += path
         return outer.ifEmpty {
@@ -376,7 +406,10 @@ object Store : EngineListener {
         launch {
             val folders = withContext(Dispatchers.IO) { musicFolders() }
             localFolders = folders
-            run { it.openLocal(folders) }
+            run {
+                it.setLocalSkip(hiddenFolders, skipWhatsapp)
+                it.openLocal(folders)
+            }
                 .onSuccess { preferences.edit().putBoolean("local.off", false).apply() }
                 .onFailure { if (!quiet) problem = describe(it) }
             localBusy = false

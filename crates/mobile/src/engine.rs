@@ -375,6 +375,23 @@ impl Engine {
         Ok(self.inner.keep(LOCAL, session))
     }
 
+    /// Las carpetas que la música del teléfono no debe mirar, con todo lo que tienen dentro:
+    /// las que quitó la persona y, si `whatsapp`, las de WhatsApp (notas de voz y audios
+    /// recibidos). Vale desde la próxima búsqueda (`open_local`).
+    pub fn set_local_skip(&self, folders: Vec<String>, whatsapp: bool) {
+        let hidden: Vec<std::path::PathBuf> = folders
+            .iter()
+            .map(|folder| std::path::PathBuf::from(folder.trim_end_matches('/')))
+            .collect();
+        music::local::set_skip(Some(Arc::new(move |dir: &std::path::Path| {
+            hidden.iter().any(|folder| dir.starts_with(folder))
+                || (whatsapp
+                    && dir.components().any(|part| {
+                        part.as_os_str().to_string_lossy().to_lowercase().contains("whatsapp")
+                    }))
+        })));
+    }
+
     /// Responde a un `Prompt` (las cookies, o el id de la cuenta elegida).
     pub fn send_input(&self, text: String) {
         if let Some(sender) = lock(&self.inner.input).as_ref() {

@@ -18,6 +18,28 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "ape", "webm", "mka",
 ];
 
+/// Decides whether a folder, and everything under it, is left out of the library.
+type SkipRule = std::sync::Arc<dyn Fn(&Path) -> bool + Send + Sync>;
+
+/// The folders an embedder has asked the scan to pass over. The desktop app never sets one.
+static SKIP: std::sync::RwLock<Option<SkipRule>> = std::sync::RwLock::new(None);
+
+/// Sets (or, with `None`, clears) the rule for folders the scan never enters, such as a
+/// messenger's voice notes on a phone. It applies from the next scan on.
+pub fn set_skip(rule: Option<SkipRule>) {
+    if let Ok(mut skip) = SKIP.write() {
+        *skip = rule;
+    }
+}
+
+/// Whether the embedder's rule leaves this folder out.
+fn skipped(dir: &Path) -> bool {
+    SKIP.read()
+        .ok()
+        .and_then(|skip| skip.as_ref().map(|rule| rule(dir)))
+        .unwrap_or(false)
+}
+
 #[derive(Default)]
 pub struct Scanned {
     pub tracks: Vec<Track>,
@@ -469,6 +491,9 @@ fn walk(
     folders: &mut Vec<Folder>,
     progress: &progress::Scan,
 ) {
+    if skipped(dir) {
+        return;
+    }
     let Some((mtime, _)) = stat(dir) else {
         return;
     };

@@ -299,12 +299,35 @@ private fun LocalSection(provider: ProviderInfo) {
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 )
-                if (Store.isExtraFolder(path)) {
-                    TextButton(onClick = { Store.removeLocalFolder(path) }) { Text("Quitar") }
-                }
+                TextButton(onClick = { Store.removeLocalFolder(path) }) { Text("Quitar") }
             }
         }
         TextButton(onClick = { runCatching { folder.launch(null) } }) { Text("Agregar carpeta…") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Ignorar audios de WhatsApp", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Las notas de voz y los audios recibidos no aparecen como canciones.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = Store.skipWhatsapp, onCheckedChange = { Store.changeSkipWhatsapp(it) })
+        }
+        if (Store.hiddenFolders.isNotEmpty()) {
+            Text("Carpetas quitadas", style = MaterialTheme.typography.labelLarge)
+            Store.hiddenFolders.forEach { path ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        path.removePrefix("/storage/emulated/0").removePrefix("/").ifEmpty { "Memoria interna" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                    )
+                    TextButton(onClick = { Store.showLocalFolder(path) }) { Text("Volver a mostrar") }
+                }
+            }
+        }
     }
 }
 
