@@ -350,7 +350,7 @@ impl MusicApi for YouTubeClient {
 
     async fn album(&self, album_id: &str) -> Result<AlbumDetail> {
         let mut detail = self.api.album(album_id).await?;
-        detail.tracks = self.api.swap_playable(detail.tracks).await;
+        detail.tracks = playable(&self.api, detail.tracks).await;
         Ok(wire::album_detail(detail))
     }
 
@@ -389,7 +389,7 @@ impl MusicApi for YouTubeClient {
 
     async fn playlist(&self, playlist_id: &str) -> Result<PlaylistDetail> {
         let mut detail = self.api.playlist_page(playlist_id).await?;
-        detail.tracks = self.api.swap_playable(detail.tracks).await;
+        detail.tracks = playable(&self.api, detail.tracks).await;
         Ok(wire::playlist_detail(detail))
     }
 
@@ -398,19 +398,19 @@ impl MusicApi for YouTubeClient {
         continuation: &str,
     ) -> Result<(Vec<Track>, Option<String>)> {
         let mut page = self.api.playlist_continuation(continuation).await?;
-        page.tracks = self.api.swap_playable(page.tracks).await;
+        page.tracks = playable(&self.api, page.tracks).await;
         Ok(wire::playlist_page(page))
     }
 
     async fn playlist_tracks(&self, playlist_id: &str) -> Result<Vec<Track>> {
         let mut detail = self.api.playlist(playlist_id).await?;
-        detail.tracks = self.api.swap_playable(detail.tracks).await;
+        detail.tracks = playable(&self.api, detail.tracks).await;
         Ok(wire::playlist_detail(detail).tracks)
     }
 
     async fn playlist_covers(&self, playlist_id: &str, wanted: usize) -> Result<Vec<String>> {
         let mut tracks = self.api.playlist_page(playlist_id).await?.tracks;
-        tracks = self.api.swap_playable(tracks).await;
+        tracks = playable(&self.api, tracks).await;
         let tracks: Vec<Track> = tracks
             .into_iter()
             .enumerate()
@@ -523,4 +523,34 @@ pub(crate) fn library_playlist(source: ytmusic::Playlist, account: &str) -> Opti
     }
 
     Some(playlist)
+}
+
+/// Swaps every music video for the song YouTube Music pairs with it, as `swap_playable` does, and
+/// takes the song's album art along: a video's thumbnail is a frame of the clip, which is usually
+/// the artist, not the cover. A video with no song keeps its own picture.
+async fn playable(
+    api: &std::sync::Arc<ytmusic::YtMusic>,
+    tracks: Vec<ytmusic::Track>,
+) -> Vec<ytmusic::Track> {
+    let songs = api.resolve_videos(tracks.clone()).await;
+    tracks
+        .into_iter()
+        .zip(songs)
+        .map(|(mut track, song)| {
+            if track.is_video() && !song.is_video() && song.video_id.is_some() {
+                track.video_id = song.video_id;
+                if song.duration.is_some() {
+                    track.duration = song.duration;
+                }
+                track.kind = song.kind;
+                if track.album.is_none() {
+                    track.album = song.album;
+                }
+                if !song.thumbnails.is_empty() {
+                    track.thumbnails = song.thumbnails;
+                }
+            }
+            track
+        })
+        .collect()
 }

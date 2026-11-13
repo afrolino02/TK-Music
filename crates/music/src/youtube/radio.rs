@@ -52,7 +52,8 @@ fn panel(response: &Value, key: &str) -> (Vec<Track>, Option<String>) {
     let tracks = panel
         .items(&["contents"])
         .iter()
-        .filter_map(parse::panel_track)
+        .map(song_side)
+        .filter_map(|item| parse::panel_track(&item))
         .enumerate()
         .map(|(index, track)| wire::track(track, index as u32))
         .collect();
@@ -62,4 +63,35 @@ fn panel(response: &Value, key: &str) -> (Vec<Track>, Option<String>) {
         .find_map(|item| item.str_at(&["nextRadioContinuationData", "continuation"]))
         .map(str::to_string);
     (tracks, next)
+}
+
+/// The song side of a station entry. YouTube pairs a music video with its song in a wrapper, and
+/// the video often comes first; its thumbnail is a frame of the clip, usually the artist, while
+/// the song carries the album art. An entry with no song in it is left as it is.
+fn song_side(item: &Value) -> Value {
+    let Some(wrapper) = item.at(&["playlistPanelVideoWrapperRenderer"]) else {
+        return item.clone();
+    };
+    let primary = wrapper.at(&["primaryRenderer", "playlistPanelVideoRenderer"]);
+    let counterparts = wrapper
+        .items(&["counterpart"])
+        .into_iter()
+        .filter_map(|side| side.at(&["counterpartRenderer", "playlistPanelVideoRenderer"]));
+    primary
+        .into_iter()
+        .chain(counterparts)
+        .find(|renderer| is_song(renderer))
+        .map(|renderer| json!({ "playlistPanelVideoRenderer": renderer }))
+        .unwrap_or_else(|| item.clone())
+}
+
+/// Whether a panel entry is a song (YouTube's "ATV" kind) rather than a music video.
+fn is_song(renderer: &Value) -> bool {
+    renderer.str_at(&[
+        "navigationEndpoint",
+        "watchEndpoint",
+        "watchEndpointMusicSupportedConfigs",
+        "watchEndpointMusicConfig",
+        "musicVideoType",
+    ]) == Some("MUSIC_VIDEO_TYPE_ATV")
 }
