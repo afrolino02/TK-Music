@@ -83,6 +83,7 @@ impl MusicApi for YouTubeClient {
 
     async fn artist(&self, artist_id: &str) -> Result<Artist> {
         let mut artist = self.api.artist(artist_id).await?;
+        artist.top_tracks = playable(&self.api, artist.top_tracks).await;
         self.hydrate_durations(&mut artist.top_tracks).await;
         Ok(wire::artist(artist))
     }
@@ -107,6 +108,7 @@ impl MusicApi for YouTubeClient {
         let (artist, albums) =
             tokio::join!(self.api.artist(artist_id), self.api.discography(artist_id));
         let mut artist = artist?;
+        artist.top_tracks = playable(&self.api, artist.top_tracks).await;
         self.hydrate_durations(&mut artist.top_tracks).await;
         let mut tracks: Vec<Track> = artist
             .top_tracks

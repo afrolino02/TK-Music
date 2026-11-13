@@ -18,6 +18,7 @@ use tokio::task::JoinHandle;
 
 use crate::{MobileError, failed, runtime};
 
+mod covers;
 mod library;
 mod lyrics;
 mod scrobble;
@@ -1203,6 +1204,7 @@ impl Inner {
                     && let Some(this) = self.this.upgrade()
                 {
                     shuffle::advance(&this);
+                    covers::fix(&this);
                 }
             }
         }
