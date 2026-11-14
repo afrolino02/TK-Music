@@ -15,7 +15,8 @@ android {
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         // En una versión publicada (etiqueta v1.2.3) el nombre es el de la etiqueta.
         versionName = System.getenv("TK_VERSION") ?: "0.1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        // Celulares, TV y proyectores son ARM; TK_ABIS=x86_64 arma la versión para el emulador del PC.
+        ndk { abiFilters += (System.getenv("TK_ABIS")?.split(",") ?: listOf("arm64-v8a", "armeabi-v7a")) }
     }
 
     // Una clave fija, para que cada APK nuevo se instale encima del anterior.
