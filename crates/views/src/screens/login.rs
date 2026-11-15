@@ -542,8 +542,8 @@ impl Render for LoginView {
                             .id("login-title")
                             .role(Role::Heading)
                             .aria_level(1)
-                            .aria_label("Sonora")
-                            .child("Sonora")
+                            .aria_label("TK-Music")
+                            .child("TK-Music")
                             .text_size(theme.text(Text::Display))
                             .font_weight(FontWeight::BOLD),
                     )

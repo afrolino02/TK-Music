@@ -140,7 +140,7 @@ impl ksni::Tray for Item {
     }
 
     fn title(&self) -> String {
-        "Sonora".to_owned()
+        "TK-Music".to_owned()
     }
 
     fn icon_name(&self) -> String {
@@ -153,7 +153,7 @@ impl ksni::Tray for Item {
 
     fn tool_tip(&self) -> ToolTip {
         ToolTip {
-            title: "Sonora".to_owned(),
+            title: "TK-Music".to_owned(),
             description: self
                 .shown
                 .as_ref()

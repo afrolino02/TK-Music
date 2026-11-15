@@ -5,14 +5,9 @@ use gpui::{App, AssetSource, SharedString};
 
 include!(concat!(env!("OUT_DIR"), "/fonts.rs"));
 
-/// Where About asks for the app icon, and the icon this platform shows for the app.
-const APP_ICON: &str = "brand/sonora.svg";
-#[cfg(target_os = "macos")]
-const APP_ICON_SVG: &[u8] = include_bytes!("../../../assets/macos/sonora.svg");
-#[cfg(target_os = "windows")]
-const APP_ICON_SVG: &[u8] = include_bytes!("../../../assets/windows/sonora.svg");
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-const APP_ICON_SVG: &[u8] = include_bytes!("../../../assets/linux/sonora.svg");
+/// Where About asks for the app icon: the TK-Music icon, the same on every platform.
+const APP_ICON: &str = "brand/tk-music.png";
+const APP_ICON_SVG: &[u8] = include_bytes!("../../../assets/brand/tk-music.png");
 
 /// RGBA icon sizes shared by X11 windows and status notifier pixmaps.
 #[cfg(target_os = "linux")]

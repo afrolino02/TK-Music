@@ -368,7 +368,7 @@ fn open_window(cx: &mut App) {
             display_id,
             window_background: background,
             titlebar: Some(TitlebarOptions {
-                title: Some("Sonora".into()),
+                title: Some("TK-Music".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(traffic_lights),
             }),

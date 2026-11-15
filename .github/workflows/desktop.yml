@@ -1,0 +1,82 @@
+name: Escritorio
+
+# TK-Music para Windows: la app de escritorio de Sonora con el nombre y el ícono de TK-Music.
+# En cada envío a main deja el instalador en Actions; con una etiqueta v* lo sube a la versión
+# publicada, junto con SHA256SUMS, que la app usa para comprobar sus propias actualizaciones.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_RELEASE_STRIP: symbols
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows
+          cache-targets: false
+          cache-on-failure: true
+
+      - name: Compilar
+        shell: bash
+        run: cargo build --release --locked --package sonora --target x86_64-pc-windows-msvc
+
+      - name: Instalar Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Armar el instalador
+        shell: pwsh
+        run: |
+          $number = "0.1.$env:GITHUB_RUN_NUMBER"
+          if ($env:GITHUB_REF -like "refs/tags/v*") { $number = $env:GITHUB_REF_NAME.TrimStart("v") }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          @{ version = $number; channel = "stable" } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM build.json
+          $env:SONORA_VERSION = $number
+          $env:SONORA_BUILD_METADATA = (Resolve-Path build.json).Path
+          $env:SONORA_EXE = (Resolve-Path "target/x86_64-pc-windows-msvc/release/sonora.exe").Path
+          $env:SONORA_DIST = (Resolve-Path dist).Path
+          $env:SONORA_ARCH = "x64compatible"
+          $env:SONORA_SETUP = "TK-Music-Setup"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "scripts/windows/sonora.iss"
+          Set-Location dist
+          $hash = (Get-FileHash TK-Music-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  TK-Music-Setup.exe" | Set-Content -Encoding ascii -NoNewline SHA256SUMS
+          Get-ChildItem
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TK-Music-windows
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publicar en Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TK-Music-Setup.exe
+            dist/SHA256SUMS

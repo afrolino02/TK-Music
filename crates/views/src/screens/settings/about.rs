@@ -14,9 +14,11 @@ use super::{Group, SettingsView, Slot, group_heading};
 /// How large the app icon stands, in covers.
 const MARK_TILE: f32 = 0.5;
 /// The app icon as this platform shows it, registered by the binary's asset source.
-const APP_ICON: &str = "brand/sonora.svg";
+const APP_ICON: &str = "brand/tk-music.png";
 const LICENSE_URL: &str = "https://www.gnu.org/licenses/gpl-3.0.html";
-const SOURCE_URL: &str = "https://github.com/sonorahq/sonora";
+const SOURCE_URL: &str = "https://github.com/rprofe358/TK-Music";
+/// The project TK-Music is built on, credited under the name in About.
+const SONORA_URL: &str = "https://github.com/sonorahq/sonora";
 
 #[derive(Clone, Copy)]
 struct Member {
@@ -168,13 +170,30 @@ impl SettingsView {
             .child(img(APP_ICON).size(tile).flex_none())
             .child(
                 div()
-                    .id("settings-about-name")
-                    .role(gpui::accesskit::Role::Heading)
-                    .aria_level(2)
-                    .aria_label(t!("settings-about-name"))
-                    .text_size(theme.text(Text::Title))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(t!("settings-about-name")),
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .id("settings-about-name")
+                            .role(gpui::accesskit::Role::Heading)
+                            .aria_level(2)
+                            .aria_label(t!("settings-about-name"))
+                            .text_size(theme.text(Text::Title))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(t!("settings-about-name")),
+                    )
+                    .child(
+                        div()
+                            .id("settings-powered-by")
+                            .role(gpui::accesskit::Role::Link)
+                            .aria_label(t!("settings-powered-by"))
+                            .text_size(theme.text(Text::Small))
+                            .text_color(theme.muted_foreground)
+                            .cursor_pointer()
+                            .on_click(|_, _, cx| cx.open_url(SONORA_URL))
+                            .child(t!("settings-powered-by")),
+                    ),
             )
     }
 

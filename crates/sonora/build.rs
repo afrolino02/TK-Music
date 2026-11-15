@@ -8,13 +8,13 @@ fn main() {
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         let icon = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../assets/windows/sonora.ico"
+            "/../../assets/windows/tk-music.ico"
         );
         println!("cargo:rerun-if-changed={icon}");
         let mut resource = winresource::WindowsResource::new();
         resource.set_icon(icon);
-        resource.set("ProductName", "Sonora");
-        resource.set("FileDescription", "Sonora");
+        resource.set("ProductName", "TK-Music");
+        resource.set("FileDescription", "TK-Music (powered by Sonora)");
         resource.compile().expect("cannot embed the windows icon");
     }
 }
