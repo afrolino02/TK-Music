@@ -269,6 +269,9 @@ object Store : EngineListener {
         palette = runCatching { Palette.valueOf(preferences.getString("look.palette", "")!!) }.getOrDefault(Palette.SYSTEM)
         mode = runCatching { Mode.valueOf(preferences.getString("look.mode", "")!!) }.getOrDefault(Mode.SYSTEM)
         userName = preferences.getString("look.name", "")!!
+        // Lo de la música del teléfono también se lee aquí: los ajustes solo existen tras init.
+        hiddenFolders = preferences.getStringSet("local.hidden", null)?.sorted() ?: emptyList()
+        skipWhatsapp = preferences.getBoolean("local.whatsapp", true)
     }
 
     fun choosePalette(value: Palette) {
@@ -332,11 +335,11 @@ object Store : EngineListener {
     }
 
     /** Las carpetas que la persona quitó: no se miran, ni lo que tienen dentro. */
-    var hiddenFolders by mutableStateOf(preferences.getStringSet("local.hidden", null)?.sorted() ?: emptyList())
+    var hiddenFolders by mutableStateOf(emptyList<String>())
         private set
 
     /** Si se dejan fuera las notas de voz y los audios de WhatsApp (por defecto, sí). */
-    var skipWhatsapp by mutableStateOf(preferences.getBoolean("local.whatsapp", true))
+    var skipWhatsapp by mutableStateOf(true)
         private set
 
     /** Quita una carpeta de la música: la agregada a mano se olvida, la que halló Android se oculta. */
