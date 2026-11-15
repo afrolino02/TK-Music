@@ -134,6 +134,8 @@ fun SonoraRoot() {
     val configuration = LocalConfiguration.current
     val tv = remember { isTv(context) }
     val wide = tv || (configuration.screenWidthDp >= 840 && configuration.screenHeightDp >= 480)
+    // al abrir, mira si hay una versión nueva de TK-Music en el repo
+    LaunchedEffect(Unit) { Updater.check(context) }
 
     fun open(tab: Destination) = nav.navigate(tab.route) {
         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
@@ -231,6 +233,7 @@ fun SonoraRoot() {
         ) {
             PlayerScreen { player = false }
         }
+        UpdateDialog()
         Store.prompt?.let { PromptDialog(it) }
         Store.adding?.let { PlaylistPicker(it) }
         Store.problem?.let { message ->

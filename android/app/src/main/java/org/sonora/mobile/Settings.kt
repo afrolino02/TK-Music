@@ -168,6 +168,20 @@ private fun Credits() {
         modifier = Modifier.focusRing().clickable { open("https://github.com/sonorahq/sonora") },
     )
     ListItem(
+        headlineContent = { Text("Buscar actualizaciones") },
+        supportingContent = {
+            Text(
+                when {
+                    Updater.offered != null -> "Hay una versión nueva: ${Updater.offered?.version}"
+                    Updater.upToDate -> "Tienes la versión más reciente"
+                    Updater.problem != null -> Updater.problem!!
+                    else -> "Revisa si hay una versión nueva de TK-Music"
+                },
+            )
+        },
+        modifier = Modifier.focusRing().clickable { Updater.check(context, manual = true) },
+    )
+    ListItem(
         headlineContent = { Text("Código y descargas") },
         supportingContent = { Text("github.com/rprofe358/TK-Music · Licencia GPL-3.0") },
         modifier = Modifier.focusRing().clickable { open("https://github.com/rprofe358/TK-Music") },
