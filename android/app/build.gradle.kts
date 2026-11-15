@@ -12,7 +12,9 @@ android {
         applicationId = "org.sonora.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+        // 1000 + compilación: siempre mayor que las del repo anterior (llegaron a 28), para que
+        // Android acepte la actualización encima sin desinstalar.
+        versionCode = 1000 + (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInt()
         // En una versión publicada (etiqueta v1.2.3) el nombre es el de la etiqueta.
         versionName = System.getenv("TK_VERSION") ?: "0.1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
         // Celulares, TV y proyectores son ARM; TK_ABIS=x86_64 arma la versión para el emulador del PC.
