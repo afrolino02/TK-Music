@@ -69,7 +69,7 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-            build
+            build > ../xcode.log 2>&1 || { grep -E "error:" ../xcode.log | sort -u | head -40; exit 1; }
 
       - name: Empaquetar .ipa
         run: |

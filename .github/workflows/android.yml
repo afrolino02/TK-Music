@@ -112,10 +112,12 @@ jobs:
         working-directory: android
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export TK_VERSION="${GITHUB_REF_NAME#v}"; fi
-          gradle assembleRelease --no-daemon --stacktrace
+          # si falla, los errores de Kotlin se repiten al final para leerlos en el registro
+          gradle assembleRelease --no-daemon 2>&1 | tee ../gradle.log || { grep -E "^e: " ../gradle.log; exit 1; }
+          if grep -q "BUILD FAILED" ../gradle.log; then grep -E "^e: " ../gradle.log; exit 1; fi
           cp app/build/outputs/apk/release/app-release.apk ../TK-Music.apk
           # La misma app para el emulador de Android Studio (procesador x86_64 del PC).
-          TK_ABIS=x86_64 gradle assembleRelease --no-daemon --stacktrace
+          TK_ABIS=x86_64 gradle assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk ../TK-Music-emulador.apk
 
       - name: Empaquetar APK
