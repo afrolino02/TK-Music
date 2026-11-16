@@ -15,6 +15,7 @@ import android.os.SystemClock
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.material3.FilterChip
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.text.AnnotatedString
@@ -1115,23 +1116,27 @@ private fun AddSongs(slug: String, onClose: () -> Unit) {
 @Composable
 private fun Ambient(colors: List<Color>) {
     val motion = rememberInfiniteTransition(label = "ambient")
-    val phase by motion.animateFloat(
+    val phase: Float by motion.animateFloat(
         initialValue = 0f,
-        targetValue = (2 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(durationMillis = 24_000, easing = LinearEasing)),
+        targetValue = 6.2831855f,
+        animationSpec = infiniteRepeatable(tween<Float>(durationMillis = 24_000, easing = LinearEasing)),
         label = "ambient-phase",
     )
     Canvas(Modifier.fillMaxSize()) {
-        val reach = maxOf(size.width, size.height)
+        val reach: Float = maxOf(size.width, size.height)
         colors.forEachIndexed { index, color ->
-            val angle = phase + index * 1.7f
-            val center = Offset(
-                size.width * (0.5f + 0.35f * kotlin.math.cos(angle + index)),
-                size.height * (0.45f + 0.3f * kotlin.math.sin(angle * 0.8f + index * 2)),
-            )
-            val radius = reach * (0.55f + 0.1f * kotlin.math.sin(angle * 1.3f))
+            val offset: Float = index.toFloat()
+            val angle: Float = phase + offset * 1.7f
+            val across: Float = 0.5f + 0.35f * kotlin.math.cos(angle + offset)
+            val down: Float = 0.45f + 0.3f * kotlin.math.sin(angle * 0.8f + offset * 2f)
+            val center = Offset(size.width * across, size.height * down)
+            val radius: Float = reach * (0.55f + 0.1f * kotlin.math.sin(angle * 1.3f))
             drawCircle(
-                brush = Brush.radialGradient(listOf(color.copy(alpha = 0.35f), Color.Transparent), center, radius),
+                brush = Brush.radialGradient(
+                    colors = listOf(color.copy(alpha = 0.35f), Color.Transparent),
+                    center = center,
+                    radius = radius,
+                ),
                 radius = radius,
                 center = center,
             )
