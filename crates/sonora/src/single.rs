@@ -10,8 +10,8 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::oneshot;
 
 const SOCKET: &str = match cfg!(debug_assertions) {
-    true => "sonora-dev.sock",
-    false => "sonora.sock",
+    true => "tk-music-dev.sock",
+    false => "tk-music.sock",
 };
 /// How long the running Sonora waits for a connection to say what it wants, so a stalled peer
 /// never holds a thread for good.

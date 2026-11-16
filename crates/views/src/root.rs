@@ -37,6 +37,11 @@ use crate::{
 /// How much smaller than its size the fullscreen player starts as it opens, zooming up to fill
 /// the window.
 const SHELL_ZOOM: f32 = 0.03;
+/// How long the TK-Music opening animation stays up before it fades, and how long the fade takes.
+const SPLASH_HOLD: std::time::Duration = std::time::Duration::from_millis(1600);
+const SPLASH_FADE: std::time::Duration = std::time::Duration::from_millis(350);
+/// The side of the opening animation, as a share of the window's shorter side.
+const SPLASH_SIDE: f32 = 0.32;
 /// How close the opening zoom comes to its end before it counts as landed.
 const SHELL_ZOOM_REST: f32 = 1e-3;
 
@@ -144,6 +149,8 @@ pub struct Root {
     framed: Option<(ui::Rounding, gpui::Point<gpui::Pixels>)>,
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     decorations: gpui::WindowDecorations,
+    /// When the window opened, while the TK-Music opening animation still covers it.
+    splash: Option<std::time::Instant>,
 }
 
 impl Root {
@@ -394,9 +401,45 @@ impl Root {
             framed: None,
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             decorations: Sonora::global(cx).settings.read(cx).window_decorations(),
+            splash: Some(std::time::Instant::now()),
         };
         root.show(start, cx);
         root
+    }
+
+    /// The TK-Music opening animation over the window, in white on a dark theme and black on a
+    /// light one, fading out once it has played. `None` once it is gone.
+    fn splash(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<gpui::AnyElement> {
+        let opened = self.splash?;
+        let elapsed = opened.elapsed();
+        if elapsed >= SPLASH_HOLD + SPLASH_FADE {
+            self.splash = None;
+            return None;
+        }
+        window.request_animation_frame();
+        let shown =
+            1. - elapsed.saturating_sub(SPLASH_HOLD).as_secs_f32() / SPLASH_FADE.as_secs_f32();
+        let theme = *cx.theme();
+        let animation = match theme.background.l < 0.5 {
+            true => "brand/splash-light.webp",
+            false => "brand/splash-dark.webp",
+        };
+        let viewport = window.viewport_size();
+        let side = viewport.width.min(viewport.height) * SPLASH_SIDE;
+        Some(
+            div()
+                .id("splash")
+                .absolute()
+                .inset_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(theme.background)
+                .opacity(shown.clamp(0., 1.))
+                .occlude()
+                .child(gpui::img(animation).size(side))
+                .into_any_element(),
+        )
     }
 
     fn artist(&mut self, cx: &mut Context<Self>) -> (Entity<ArtistView>, Entity<ArtistDetail>) {
@@ -1372,6 +1415,7 @@ impl Render for Root {
             );
         // A closed menu or dialog fades out here, over everything else in the window.
         let root = root.child(ui::lingers());
+        let root = root.children(self.splash(window, cx));
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         let root = root.child(WindowFrame::new());
         root

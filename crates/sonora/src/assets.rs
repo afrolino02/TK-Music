@@ -8,6 +8,17 @@ include!(concat!(env!("OUT_DIR"), "/fonts.rs"));
 /// Where About asks for the app icon: the TK-Music icon, the same on every platform.
 const APP_ICON: &str = "brand/tk-music.png";
 const APP_ICON_SVG: &[u8] = include_bytes!("../../../assets/brand/tk-music.png");
+/// The TK-Music opening animation, white for dark themes and black for light ones.
+const SPLASH: [(&str, &[u8]); 2] = [
+    (
+        "brand/splash-light.webp",
+        include_bytes!("../../../assets/brand/splash-light.webp"),
+    ),
+    (
+        "brand/splash-dark.webp",
+        include_bytes!("../../../assets/brand/splash-dark.webp"),
+    ),
+];
 
 /// RGBA icon sizes shared by X11 windows and status notifier pixmaps.
 #[cfg(target_os = "linux")]
@@ -68,6 +79,9 @@ impl AssetSource for Assets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
         if path == APP_ICON {
             return Ok(Some(Cow::Borrowed(APP_ICON_SVG)));
+        }
+        if let Some((_, bytes)) = SPLASH.iter().find(|(name, _)| *name == path) {
+            return Ok(Some(Cow::Borrowed(bytes)));
         }
         if let Some(bytes) = icons::asset(path) {
             return Ok(Some(Cow::Borrowed(bytes)));
