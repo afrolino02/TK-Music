@@ -153,6 +153,7 @@ struct TrackMenu: ViewModifier {
             } label: {
                 Label("Guardar en tu biblioteca", systemImage: "heart")
             }
+            DownloadButton(track: track, slug: slug)
             Button {
                 store.addingToPlaylist = PendingAdd(slug: slug, tracks: [track])
             } label: {
@@ -835,6 +836,36 @@ struct LibrarySectionView: View {
     }
 }
 
+/// «Descargar para sin conexión» o «Quitar la descarga», dentro del menú de una canción.
+struct DownloadButton: View {
+    @EnvironmentObject private var store: Store
+    let track: TrackItem
+    let slug: String
+
+    var body: some View {
+        if store.canDownload(slug) {
+            let busy = store.downloading.contains(track.id)
+            let downloaded = store.isDownloaded(track, from: slug)
+            Button {
+                if downloaded {
+                    store.removeDownload(track, from: slug)
+                } else {
+                    store.download([track], from: slug)
+                }
+            } label: {
+                if busy {
+                    Label("Descargando…", systemImage: "arrow.down.circle")
+                } else if downloaded {
+                    Label("Quitar la descarga", systemImage: "arrow.down.circle.fill")
+                } else {
+                    Label("Descargar para sin conexión", systemImage: "arrow.down.circle")
+                }
+            }
+            .disabled(busy)
+        }
+    }
+}
+
 /// "Reproducir" y "Aleatorio" para una lista de canciones.
 struct PlayButtons: View {
     @EnvironmentObject private var store: Store
@@ -852,6 +883,20 @@ struct PlayButtons: View {
                 store.play(tracks.shuffled(), at: 0, from: slug)
             } label: {
                 Label("Aleatorio", systemImage: "shuffle").frame(maxWidth: .infinity)
+            }
+            if store.canDownload(slug) {
+                let busy = tracks.contains { store.downloading.contains($0.id) }
+                Button {
+                    store.download(tracks, from: slug)
+                } label: {
+                    if busy {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                }
+                .disabled(busy)
+                .accessibilityLabel("Descargar todas para sin conexión")
             }
         }
         .buttonStyle(.bordered)
@@ -1131,7 +1176,7 @@ private struct OfflineHome: View {
     @EnvironmentObject private var store: Store
 
     var body: some View {
-        Loader(key: "offline-\(store.libraryRevision)", load: { $0.offlineTracks() }) { tracks in
+        Loader(key: "offline-\(store.libraryRevision)-\(store.downloadRevision)", load: { $0.offlineTracks() }) { tracks in
             List {
                 Section {
                     Greeting().listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
@@ -1152,9 +1197,9 @@ private struct OfflineHome: View {
                         Label("Música descargada", systemImage: "arrow.down.circle")
                     }
                 }
-                Section("Escuchadas y guardadas") {
+                Section("Descargadas y escuchadas") {
                     if tracks.isEmpty {
-                        Text("Todavía no hay canciones guardadas. Las que escuches con internet se guardan solas y después suenan sin conexión.")
+                        Text("Todavía no hay canciones guardadas. Con internet, mantén pulsada una canción y elige «Descargar para sin conexión», o usa el botón de descarga de una playlist o álbum. Las que escuches también se guardan solas.")
                             .foregroundStyle(.secondary)
                     } else {
                         TrackList(tracks: tracks, slug: "youtube")

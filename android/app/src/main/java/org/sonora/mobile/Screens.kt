@@ -940,7 +940,7 @@ fun PlaylistPicker(pending: PendingAdd) {
 @Composable
 private fun OfflineHome() {
     val nav = LocalNav.current
-    Loader(key = "offline-${Store.libraryRevision}", load = { it.offlineTracks() }) { tracks ->
+    Loader(key = "offline-${Store.libraryRevision}-${Store.downloadRevision}", load = { it.offlineTracks() }) { tracks ->
         LazyColumn(Modifier.fillMaxSize()) {
             item { Greeting() }
             item {
@@ -971,7 +971,7 @@ private fun OfflineHome() {
             if (tracks.isEmpty()) {
                 item {
                     Text(
-                        "Todavía no hay canciones guardadas. Las que escuches con internet se guardan solas y después suenan sin conexión.",
+                        "Todavía no hay canciones guardadas. Con internet, toca ⋮ en una canción y elige «Descargar para sin conexión», o el botón de descarga de una playlist o álbum. Las que escuches también se guardan solas.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp),
@@ -980,7 +980,7 @@ private fun OfflineHome() {
             } else {
                 item {
                     Text(
-                        "Escuchadas y guardadas",
+                        "Descargadas y escuchadas",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),

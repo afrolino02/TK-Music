@@ -84,6 +84,9 @@ import uniffi.sonora_mobile.MediaItem
 import uniffi.sonora_mobile.PlaylistItem
 import uniffi.sonora_mobile.SavedKind
 import uniffi.sonora_mobile.TrackItem
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material3.OutlinedIconButton
 
 /** La navegación de la pestaña actual, para abrir álbumes, playlists y artistas. */
 val LocalNav = staticCompositionLocalOf<NavHostController> { error("sin navegación") }
@@ -341,6 +344,7 @@ fun TrackMenu(track: TrackItem, slug: String, open: Boolean, onDismiss: () -> Un
             leadingIcon = { Icon(Icons.Filled.Favorite, null) },
             onClick = { pick { Store.save(SavedKind.TRACK, track.id, slug) } },
         )
+        DownloadMenuItem(track, slug, onDismiss)
         DropdownMenuItem(
             text = { Text("Agregar a una playlist…") },
             leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
@@ -370,6 +374,31 @@ fun TrackMenu(track: TrackItem, slug: String, open: Boolean, onDismiss: () -> Un
     }
 }
 
+/** «Descargar para sin conexión» o «Quitar la descarga», dentro del menú de una canción. */
+@Composable
+fun DownloadMenuItem(track: TrackItem, slug: String, onDismiss: () -> Unit) {
+    if (!Store.canDownload(slug)) return
+    val downloaded = remember(track.id, Store.downloadRevision) { Store.isDownloaded(track, slug) }
+    val busy = track.id in Store.downloading
+    DropdownMenuItem(
+        text = {
+            Text(
+                when {
+                    busy -> "Descargando…"
+                    downloaded -> "Quitar la descarga"
+                    else -> "Descargar para sin conexión"
+                },
+            )
+        },
+        leadingIcon = { Icon(if (downloaded) Icons.Filled.DownloadDone else Icons.Filled.Download, null) },
+        enabled = !busy,
+        onClick = {
+            onDismiss()
+            if (downloaded) Store.removeDownload(track, slug) else Store.download(listOf(track), slug)
+        },
+    )
+}
+
 /** "Reproducir" y "Aleatorio" para una lista de canciones. */
 @Composable
 fun PlayButtons(tracks: List<TrackItem>, slug: String) {
@@ -384,6 +413,16 @@ fun PlayButtons(tracks: List<TrackItem>, slug: String) {
         FilledTonalButton(onClick = { Store.play(tracks.shuffled(), 0, slug) }, enabled = tracks.isNotEmpty(), modifier = Modifier.weight(1f)) {
             Icon(Icons.Filled.Shuffle, null)
             Text("Aleatorio")
+        }
+        if (Store.canDownload(slug) && tracks.isNotEmpty()) {
+            val busy = tracks.any { it.id in Store.downloading }
+            OutlinedIconButton(onClick = { Store.download(tracks, slug) }, enabled = !busy) {
+                if (busy) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Filled.Download, "Descargar todas para sin conexión")
+                }
+            }
         }
     }
 }

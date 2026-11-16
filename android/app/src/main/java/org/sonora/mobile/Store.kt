@@ -23,6 +23,7 @@ import uniffi.sonora_mobile.SavedKind
 import uniffi.sonora_mobile.SessionInfo
 import uniffi.sonora_mobile.SignInMethod
 import uniffi.sonora_mobile.TrackItem
+import androidx.compose.runtime.mutableStateListOf
 
 /** Un aviso del motor que espera respuesta durante el inicio de sesión. */
 data class PendingPrompt(val slug: String, val prompt: Prompt, val id: Long = System.nanoTime())
@@ -182,6 +183,49 @@ object Store : EngineListener {
                 if (!quiet) problem = if (saved) "Guardado en tu biblioteca." else "Quitado de tu biblioteca."
             }
             .onFailure { problem = describe(it) }
+    }
+
+    // ── Descargas para escuchar sin internet ───────────────────────────────────────────────
+
+    /** Las canciones que se están descargando ahora, por id. */
+    val downloading = mutableStateListOf<String>()
+
+    /** Sube cada vez que cambia lo descargado, para que las pantallas vuelvan a preguntar. */
+    var downloadRevision by mutableIntStateOf(0)
+
+    /** Solo las canciones de YouTube Music se pueden descargar y escuchar sin conexión. */
+    fun canDownload(slug: String) = slug == "youtube"
+
+    fun isDownloaded(track: TrackItem, slug: String): Boolean =
+        canDownload(slug) && runCatching { engine.isDownloaded(slug, track.id) }.getOrDefault(false)
+
+    /** Descarga las canciones una tras otra para escucharlas sin internet. */
+    fun download(tracks: List<TrackItem>, slug: String) = launch {
+        val pending = tracks.filter { it.id !in downloading }
+        if (pending.isEmpty()) return@launch
+        pending.forEach { downloading.add(it.id) }
+        if (pending.size > 1) problem = "Descargando ${pending.size} canciones…"
+        var done = 0
+        var failure: Throwable? = null
+        for (track in pending) {
+            run { it.downloadTrack(slug, track) }
+                .onSuccess { done++ }
+                .onFailure { failure = it }
+            downloading.remove(track.id)
+            downloadRevision++
+        }
+        problem = when {
+            failure != null && done == 0 -> "No se pudo descargar: ${describe(failure!!)}"
+            failure != null -> "Se descargaron $done de ${pending.size} canciones."
+            pending.size == 1 -> "Descargada: ya suena sin conexión."
+            else -> "Listo: $done canciones descargadas."
+        }
+    }
+
+    fun removeDownload(track: TrackItem, slug: String) = launch {
+        run { it.removeDownload(slug, track.id) }
+        downloadRevision++
+        problem = "Descarga borrada del teléfono."
     }
 
     // ── Playlists ──────────────────────────────────────────────────────────────────────────

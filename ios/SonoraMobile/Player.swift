@@ -158,6 +158,7 @@ struct PlayerView: View {
                 Button { playlist = PendingAdd(slug: slug, tracks: [track]) } label: {
                     Label("Agregar a una playlist…", systemImage: "text.badge.plus")
                 }
+                DownloadButton(track: track, slug: slug)
                 if !state.remote, let album = track.albumId {
                     Button {
                         dismiss()

@@ -351,6 +351,55 @@ final class Store: ObservableObject {
         }
     }
 
+    // MARK: Descargas para escuchar sin internet
+
+    /// Las canciones que se están descargando ahora, por id.
+    @Published var downloading: Set<String> = []
+    /// Sube cada vez que cambia lo descargado, para que las pantallas vuelvan a preguntar.
+    @Published var downloadRevision = 0
+
+    /// Solo las canciones de YouTube Music se pueden descargar y escuchar sin conexión.
+    func canDownload(_ slug: String) -> Bool { slug == "youtube" }
+
+    func isDownloaded(_ track: TrackItem, from slug: String) -> Bool {
+        canDownload(slug) && engine.isDownloaded(slug: slug, id: track.id)
+    }
+
+    /// Descarga las canciones una tras otra para escucharlas sin internet.
+    func download(_ tracks: [TrackItem], from slug: String) {
+        let pending = tracks.filter { !downloading.contains($0.id) }
+        guard !pending.isEmpty else { return }
+        pending.forEach { downloading.insert($0.id) }
+        if pending.count > 1 { problem = "Descargando \(pending.count) canciones…" }
+        Task {
+            var done = 0
+            var failure: Error?
+            for track in pending {
+                switch await run({ try $0.downloadTrack(slug: slug, track: track) }) {
+                case .success: done += 1
+                case .failure(let error): failure = error
+                }
+                downloading.remove(track.id)
+                downloadRevision += 1
+            }
+            if let failure, done == 0 {
+                problem = "No se pudo descargar: \(describe(failure))"
+            } else if failure != nil {
+                problem = "Se descargaron \(done) de \(pending.count) canciones."
+            } else {
+                problem = pending.count == 1 ? "Descargada: ya suena sin conexión." : "Listo: \(done) canciones descargadas."
+            }
+        }
+    }
+
+    func removeDownload(_ track: TrackItem, from slug: String) {
+        Task {
+            _ = await run { $0.removeDownload(slug: slug, id: track.id) }
+            downloadRevision += 1
+            problem = "Descarga borrada del teléfono."
+        }
+    }
+
     // MARK: Ajustes de audio
 
     private static let audioKey = "audio-settings"

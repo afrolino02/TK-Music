@@ -19,6 +19,7 @@ use tokio::task::JoinHandle;
 use crate::{MobileError, failed, runtime};
 
 mod covers;
+mod downloads;
 mod library;
 mod lyrics;
 mod mixes;
@@ -45,6 +46,20 @@ pub(crate) fn kept(provider: &'static str, id: &str) -> bool {
         "youtube" => vault.keeps(provider, id, &music::youtube::kept_variant(Quality::High)),
         _ => false,
     }
+}
+
+/// Si la canción `id` de `slug` está descargada a propósito (no solo en la caché).
+pub(crate) fn kept_download(slug: &str, id: &str) -> bool {
+    let Some(vault) = VAULT.get() else {
+        return false;
+    };
+    let provider: &'static str = match slug {
+        "youtube" => "youtube",
+        "spotify" => "spotify",
+        _ => return false,
+    };
+    // ninguna copia de la caché tiene esta variante, así que solo cuenta la descarga
+    vault.keeps(provider, id, "\u{0}download-only")
 }
 
 /// Cuánto ocupan como mucho las canciones guardadas tras escucharlas: 1 GB.

@@ -646,6 +646,7 @@ private fun TrackActions(track: TrackItem, slug: String, onClose: () -> Unit, on
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
                 onClick = { pick { Store.adding = PendingAdd(slug, listOf(track)) } },
             )
+            DownloadMenuItem(track, slug) { open = false }
             if (!(Store.state?.remote ?: false)) {
                 track.albumId?.let { album ->
                     DropdownMenuItem(

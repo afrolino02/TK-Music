@@ -343,6 +343,9 @@ impl Engine {
     /// Las canciones de YouTube Music ya escuchadas que quedaron guardadas en el teléfono y
     /// suenan sin internet, de la más reciente a la más vieja. Para el modo sin conexión.
     pub fn offline_tracks(&self) -> Vec<TrackItem> {
+        // primero lo descargado a propósito, luego lo que quedó guardado al escucharlo
+        let mut tracks = super::downloads::downloaded("youtube");
+        let mut seen: HashSet<String> = tracks.iter().map(|track| track.id.clone()).collect();
         let mut played: Vec<Played> = lock(&HISTORY)
             .iter()
             .filter(|played| played.slug == "youtube")
@@ -353,6 +356,8 @@ impl Engine {
             .into_iter()
             .filter(|played| super::kept("youtube", &played.track.id))
             .map(|played| played.track)
-            .collect()
+            .filter(|track| seen.insert(track.id.clone()))
+            .for_each(|track| tracks.push(track));
+        tracks
     }
 }
