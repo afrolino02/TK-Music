@@ -16,6 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
 
 /** Los temas de color que se eligen en Ajustes › Personalización. */
 enum class Palette(val label: String, val seed: Color?) {
@@ -27,6 +30,13 @@ enum class Palette(val label: String, val seed: Color?) {
     LAVENDER("Lavanda", Color(0xFF7E57C2)),
     ROSE("Rosa", Color(0xFFD81B60)),
     GOLD("Oro", Color(0xFFC9A227)),
+}
+
+/** Cómo dibuja el visualizador del reproductor el sonido. */
+enum class VisualizerStyle(val label: String) {
+    BARS("Barras"),
+    WAVE("Onda"),
+    BOTH("Barras y onda"),
 }
 
 /** Claro, oscuro o como el teléfono. */
@@ -53,12 +63,15 @@ fun SonoraTheme(content: @Composable () -> Unit) {
             isAppearanceLightNavigationBars = !dark
         }
     }
-    MaterialTheme(colorScheme = scheme(Store.palette, dark), content = content)
+    // con «Colores de la portada», el color de lo que suena tiñe toda la app (con transición)
+    val cover = Store.coverAccent.takeIf { Store.adaptive }
+    val accent by animateColorAsState(cover ?: Color.Black, tween(900), label = "accent")
+    MaterialTheme(colorScheme = scheme(Store.palette, dark, accent.takeIf { cover != null }), content = content)
 }
 
 @Composable
-private fun scheme(palette: Palette, dark: Boolean): ColorScheme {
-    val seed = palette.seed
+private fun scheme(palette: Palette, dark: Boolean, cover: Color? = null): ColorScheme {
+    val seed = cover ?: palette.seed
     if (seed == null) {
         val context = LocalContext.current
         return when {
@@ -68,7 +81,7 @@ private fun scheme(palette: Palette, dark: Boolean): ColorScheme {
             else -> lightColorScheme()
         }
     }
-    if (palette == Palette.TK) {
+    if (palette == Palette.TK && cover == null) {
         return if (dark) {
             darkColorScheme(
                 primary = Color.White, onPrimary = Color.Black,

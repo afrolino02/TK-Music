@@ -21,9 +21,9 @@ use crate::{MobileError, failed, runtime};
 mod covers;
 mod library;
 mod lyrics;
+mod mixes;
 mod scrobble;
 mod session;
-mod mixes;
 mod settings;
 mod shuffle;
 
@@ -32,6 +32,20 @@ pub use lyrics::*;
 pub use scrobble::*;
 pub use session::*;
 pub use settings::*;
+
+/// La bóveda de canciones guardadas, para saber qué suena sin internet.
+static VAULT: std::sync::OnceLock<Arc<music::vault::Vault>> = std::sync::OnceLock::new();
+
+/// Si la canción `id` de `provider` está guardada entera en el teléfono y suena sin internet.
+pub(crate) fn kept(provider: &'static str, id: &str) -> bool {
+    let Some(vault) = VAULT.get() else {
+        return false;
+    };
+    match provider {
+        "youtube" => vault.keeps(provider, id, &music::youtube::kept_variant(Quality::High)),
+        _ => false,
+    }
+}
 
 /// Cuánto ocupan como mucho las canciones guardadas tras escucharlas: 1 GB.
 const VAULT_BYTES: u64 = 1 << 30;
@@ -42,6 +56,7 @@ const VAULT_BYTES: u64 = 1 << 30;
 fn vault() -> Option<Arc<music::vault::Vault>> {
     use music::vault::{MASTER, Vault};
     let vault = Arc::new(Vault::standard(VAULT_BYTES));
+    let _ = VAULT.set(vault.clone());
     vault.set_caching(true);
     // Spotify guarda sus propios archivos, dentro del mismo límite
     Vault::set_keeping(true, VAULT_BYTES);
@@ -388,7 +403,10 @@ impl Engine {
             hidden.iter().any(|folder| dir.starts_with(folder))
                 || (whatsapp
                     && dir.components().any(|part| {
-                        part.as_os_str().to_string_lossy().to_lowercase().contains("whatsapp")
+                        part.as_os_str()
+                            .to_string_lossy()
+                            .to_lowercase()
+                            .contains("whatsapp")
                     }))
         })));
     }
@@ -690,15 +708,13 @@ impl Engine {
         if input.is_empty() {
             return Vec::new();
         }
-        let api = self
-            .inner
-            .api("youtube")
-            .or_else(|_| self.inner.api(&slug));
+        let api = self.inner.api("youtube").or_else(|_| self.inner.api(&slug));
         let Ok(api) = api else {
             return Vec::new();
         };
         runtime().block_on(async {
-            match tokio::time::timeout(Duration::from_secs(3), api.search_suggestions(&input)).await {
+            match tokio::time::timeout(Duration::from_secs(3), api.search_suggestions(&input)).await
+            {
                 Ok(Ok(found)) => found.into_iter().take(8).collect(),
                 _ => Vec::new(),
             }
@@ -1195,7 +1211,9 @@ impl Inner {
                 lyrics::prefetch(self);
                 if !self.remote() {
                     let queue = lock(&self.queue);
-                    if let (Some(slug), Some(track)) = (queue.slug.clone(), queue.tracks.get(queue.index).cloned()) {
+                    if let (Some(slug), Some(track)) =
+                        (queue.slug.clone(), queue.tracks.get(queue.index).cloned())
+                    {
                         drop(queue);
                         mixes::record(&slug, &track);
                     }
@@ -1234,11 +1252,17 @@ fn google_sized(url: &str, edge: u32) -> Option<String> {
     let scale = |value: u32| (u64::from(value) * u64::from(edge) / u64::from(longer)) as u32;
     let options = options
         .split('-')
-        .map(|option| match (number(option, 'w'), number(option, 'h'), number(option, 's')) {
-            (Some(value), _, _) => format!("w{}", scale(value)),
-            (_, Some(value), _) => format!("h{}", scale(value)),
-            (_, _, Some(value)) => format!("s{}", scale(value)),
-            _ => option.to_owned(),
+        .map(|option| {
+            match (
+                number(option, 'w'),
+                number(option, 'h'),
+                number(option, 's'),
+            ) {
+                (Some(value), _, _) => format!("w{}", scale(value)),
+                (_, Some(value), _) => format!("h{}", scale(value)),
+                (_, _, Some(value)) => format!("s{}", scale(value)),
+                _ => option.to_owned(),
+            }
         })
         .collect::<Vec<_>>()
         .join("-");

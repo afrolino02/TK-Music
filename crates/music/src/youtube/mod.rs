@@ -27,6 +27,7 @@ use crate::{
 };
 pub use client::YouTubeClient;
 pub use lyrics::YouTubeLyrics;
+pub use playback::kept_variant;
 
 const GUEST_ID: &str = "youtube-guest";
 /// Google's sign-in page, told to come back to YouTube Music once the account is in: the same url

@@ -262,6 +262,22 @@ impl Vault {
         self.keys.get()
     }
 
+    /// Whether `provider` keeps a whole copy of track `id` here, downloaded or cached as
+    /// `variant`, so it plays without the network. It answers no while the vault is locked.
+    pub fn keeps(self: &Arc<Self>, provider: &'static str, id: &str, variant: &str) -> bool {
+        let Some(prk) = self.keys.get() else {
+            return false;
+        };
+        let shelf = self.shelf(provider);
+        [(Place::Pinned, ""), (Place::Cache, variant)]
+            .into_iter()
+            .any(|(place, variant)| {
+                shelf
+                    .spot(prk, place, id, variant)
+                    .is_some_and(|(_, path)| path.is_file())
+            })
+    }
+
     /// The part of the vault one provider keeps its tracks in. `provider` names its folder and
     /// goes into every key, so no provider can open another's entries.
     pub(crate) fn shelf(self: &Arc<Self>, provider: &'static str) -> Shelf {

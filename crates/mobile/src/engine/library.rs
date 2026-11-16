@@ -160,7 +160,11 @@ impl Engine {
         // Las canciones del teléfono son todas las encontradas, no solo las del corazón.
         let tracks = block(async {
             let all = api.all_tracks().await.unwrap_or_default();
-            if all.is_empty() { api.saved_tracks().await } else { Ok(all) }
+            if all.is_empty() {
+                api.saved_tracks().await
+            } else {
+                Ok(all)
+            }
         })?;
         Ok(tracks.iter().filter_map(item).collect())
     }
@@ -169,7 +173,11 @@ impl Engine {
         let api = self.inner.api(&slug)?;
         let albums = block(async {
             let all = api.all_albums().await.unwrap_or_default();
-            if all.is_empty() { api.saved_albums().await } else { Ok(all) }
+            if all.is_empty() {
+                api.saved_albums().await
+            } else {
+                Ok(all)
+            }
         })?;
         Ok(albums.iter().map(album).collect())
     }
@@ -178,7 +186,11 @@ impl Engine {
         let api = self.inner.api(&slug)?;
         let artists = block(async {
             let all = api.all_artists().await.unwrap_or_default();
-            if all.is_empty() { api.saved_artists().await } else { Ok(all) }
+            if all.is_empty() {
+                api.saved_artists().await
+            } else {
+                Ok(all)
+            }
         })?;
         Ok(artists.iter().map(artist).collect())
     }

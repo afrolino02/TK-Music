@@ -10,13 +10,32 @@ struct LyricsPanel: View {
             Loader(key: "\(slug):\(track.id)", load: { try $0.lyricsFor(slug: slug, track: track) }) { result in
                 LyricsBody(result: result)
             }
+            // mientras se ven las letras, la pantalla no se apaga (karaoke, proyector)
+            .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+            .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         } else {
             Text("No suena nada.").foregroundStyle(.secondary)
         }
     }
 }
 
+/// El botón para mostrar u ocultar la pronunciación, solo si la letra la tiene.
+struct RomanizedToggle: View {
+    @EnvironmentObject private var store: Store
+    let result: LyricsResult
+
+    var body: some View {
+        if result.lines.contains(where: { $0.romanized != nil }) {
+            Toggle("Pronunciación", isOn: $store.showRomanized)
+                .toggleStyle(.button)
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.bordered)
+        }
+    }
+}
+
 struct LyricsBody: View {
+    @EnvironmentObject private var store: Store
     let result: LyricsResult?
 
     var body: some View {
@@ -26,9 +45,18 @@ struct LyricsBody: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(result.lines.map(\.text).joined(separator: "\n"))
-                            .font(.system(size: 20, weight: .semibold))
-                            .lineSpacing(6)
+                        RomanizedToggle(result: result)
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(Array(result.lines.enumerated()), id: \.offset) { _, line in
+                                Text(line.text.isEmpty ? " " : line.text)
+                                    .font(.system(size: 20, weight: .semibold))
+                                if store.showRomanized, let reading = line.romanized {
+                                    Text(reading)
+                                        .font(.system(size: 15, weight: .regular))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                         Text("Letra: \(result.source)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -79,6 +107,7 @@ struct SyncedLyrics: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .overlay(alignment: .topTrailing) { RomanizedToggle(result: result).padding(8) }
                 .onChange(of: active) { line in
                     guard let line else { return }
                     withAnimation(.easeInOut(duration: 0.8)) {
@@ -98,6 +127,7 @@ struct SyncedLyrics: View {
             let current = index == active
             LyricRow(
                 text: line.text,
+                romanized: store.showRomanized ? line.romanized : nil,
                 words: current ? line.words : [],
                 position: current ? position : 0,
                 current: current,
@@ -117,6 +147,7 @@ struct SyncedLyrics: View {
 /// una escala, así el texto no cambia de tamaño ni empuja a las otras al pasar de una a otra.
 private struct LyricRow: View {
     let text: String
+    let romanized: String?
     let words: [LyricWord]
     let position: UInt64
     let current: Bool
@@ -131,8 +162,16 @@ private struct LyricRow: View {
     }
 
     var body: some View {
-        styled
-            .font(.system(size: 28, weight: .bold))
+        VStack(alignment: .leading, spacing: 2) {
+            styled
+                .font(.system(size: 28, weight: .bold))
+            // la pronunciación, más pequeña, debajo de la línea en otro sistema de escritura
+            if let romanized {
+                Text(romanized)
+                    .font(.system(size: 16, weight: .medium))
+                    .opacity(0.75)
+            }
+        }
             .foregroundStyle(.primary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .scaleEffect(current ? 1 : 0.8, anchor: .leading)

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package org.sonora.mobile
 
 import android.app.Activity
@@ -11,6 +13,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.zIndex
 import android.os.SystemClock
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.material3.FilterChip
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -152,7 +158,7 @@ import kotlin.math.abs
 private enum class Panel { LYRICS, QUEUE, SESSION }
 
 /** Los colores sacados de la portada: los del fondo y si encima va texto claro u oscuro. */
-private data class Tint(val top: Color, val bottom: Color, val light: Boolean)
+private data class Tint(val top: Color, val bottom: Color, val light: Boolean, val colors: List<Color> = emptyList())
 
 private val neutral = Tint(Color(0xFF2A2A2A), Color(0xFF121212), light = false)
 
@@ -224,10 +230,15 @@ private fun rememberTint(cover: String?): Tint {
             val palette = Palette.from(image.toBitmap()).generate()
             val dominant = Color(palette.getDominantColor(0xFF2A2A2A.toInt()))
             val light = dominant.luminance() > 0.55f
+            val swatches = listOfNotNull(
+                palette.vibrantSwatch, palette.lightVibrantSwatch, palette.darkVibrantSwatch,
+                palette.mutedSwatch, palette.lightMutedSwatch, palette.darkMutedSwatch,
+            ).map { Color(it.rgb) }
             Tint(
                 top = dominant,
                 bottom = lerp(dominant, if (light) Color.White else Color.Black, 0.45f),
                 light = light,
+                colors = (swatches + dominant).distinct().take(4),
             )
         }
     }
@@ -376,6 +387,27 @@ private fun Backdrop(cover: String?, tint: Tint) {
                 ),
             )
         }
+        if (Store.ambient && tint.colors.isNotEmpty()) Ambient(tint.colors)
+    }
+}
+
+/**
+ * Para «Colores de la portada»: saca el color más vivo de la portada de lo que suena y lo deja
+ * en [Store.coverAccent], de donde lo toma el tema de toda la app.
+ */
+@Composable
+fun CoverAccent() {
+    val context = LocalContext.current
+    val cover = Store.state?.track?.cover
+    LaunchedEffect(cover, Store.adaptive) {
+        if (!Store.adaptive || cover == null) return@LaunchedEffect
+        val request = ImageRequest.Builder(context).data(fixUrl(cover)).size(96).allowHardware(false).build()
+        val image = SingletonImageLoader.get(context).execute(request).image ?: return@LaunchedEffect
+        Store.coverAccent = withContext(Dispatchers.Default) {
+            val palette = Palette.from(image.toBitmap()).generate()
+            val swatch = palette.vibrantSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
+            swatch?.let { Color(it.rgb) }
+        }
     }
 }
 
@@ -515,16 +547,40 @@ private fun Visualizer(modifier: Modifier) {
         }
     }
     val color = LocalContentColor.current
+    val style = Store.visualizer
     Canvas(modifier) {
         val count = bands.size
         if (count == 0) return@Canvas
+        if (style != VisualizerStyle.BARS) {
+            // la onda: una línea suave que pasa por el nivel de cada banda
+            val path = androidx.compose.ui.graphics.Path()
+            val step = size.width / (count - 1).coerceAtLeast(1)
+            fun y(level: Float) = size.height - level.coerceIn(0f, 1f) * size.height * 0.95f - 1.dp.toPx()
+            path.moveTo(0f, y(bands[0]))
+            for (index in 1 until count) {
+                val x0 = (index - 1) * step
+                val x1 = index * step
+                val mid = (x0 + x1) / 2
+                path.cubicTo(mid, y(bands[index - 1]), mid, y(bands[index]), x1, y(bands[index]))
+            }
+            drawPath(
+                path,
+                color = color.copy(alpha = if (style == VisualizerStyle.BOTH) 0.95f else 0.85f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 2.5.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                ),
+            )
+            if (style == VisualizerStyle.WAVE) return@Canvas
+        }
         val gap = 3.dp.toPx()
         val width = ((size.width - gap * (count - 1)) / count).coerceAtLeast(1f)
         val least = 2.dp.toPx()
+        val faded = if (style == VisualizerStyle.BOTH) 0.45f else 1f
         bands.forEachIndexed { index, level ->
             val height = (level.coerceIn(0f, 1f) * size.height).coerceAtLeast(least)
             drawRoundRect(
-                color = color.copy(alpha = 0.35f + 0.5f * level.coerceIn(0f, 1f)),
+                color = color.copy(alpha = (0.35f + 0.5f * level.coerceIn(0f, 1f)) * faded),
                 topLeft = Offset(index * (width + gap), size.height - height),
                 size = Size(width, height),
                 cornerRadius = CornerRadius(width / 2, width / 2),
@@ -642,7 +698,25 @@ private fun LyricsPanel(big: Boolean) {
         Centered("No suena nada.")
         return
     }
+    // mientras se ven las letras, la pantalla no se apaga (karaoke, proyector)
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
     Loader(key = "$slug:${track.id}", load = { it.lyricsFor(slug, track) }) { result -> LyricsBody(result, big) }
+}
+
+/** El botón para mostrar u ocultar la pronunciación, solo si la letra la tiene. */
+@Composable
+private fun RomanizedToggle(result: LyricsResult, modifier: Modifier = Modifier) {
+    if (result.lines.none { it.romanized != null }) return
+    FilterChip(
+        selected = Store.showRomanized,
+        onClick = { Store.changeShowRomanized(!Store.showRomanized) },
+        label = { Text("Pronunciación") },
+        modifier = modifier.focusRing(),
+    )
 }
 
 @Composable
@@ -650,9 +724,21 @@ private fun LyricsBody(result: LyricsResult?, big: Boolean) {
     when {
         result != null && result.lines.isNotEmpty() && result.synced -> SyncedLyrics(result, big)
         result != null && result.lines.isNotEmpty() -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
+            item { RomanizedToggle(result, Modifier.padding(bottom = 12.dp)) }
             item {
                 Text(
-                    result.lines.joinToString("\n") { it.text },
+                    buildAnnotatedString {
+                        result.lines.forEachIndexed { index, line ->
+                            if (index > 0) append("\n")
+                            append(line.text)
+                            val reading = line.romanized
+                            if (Store.showRomanized && reading != null) {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = if (big) 18.sp else 15.sp)) {
+                                    append("\n" + reading)
+                                }
+                            }
+                        }
+                    },
                     fontSize = if (big) 26.sp else 20.sp,
                     lineHeight = if (big) 36.sp else 30.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -723,6 +809,7 @@ private fun SyncedLyrics(result: LyricsResult, big: Boolean) {
             itemsIndexed(result.lines) { index, line ->
                 LyricLine(
                     text = line.text,
+                    romanized = line.romanized?.takeIf { Store.showRomanized },
                     words = line.words,
                     position = if (index == active) position else 0L,
                     current = index == active,
@@ -739,6 +826,7 @@ private fun SyncedLyrics(result: LyricsResult, big: Boolean) {
                 )
             }
         }
+        RomanizedToggle(result, Modifier.align(Alignment.TopEnd).padding(8.dp))
     }
 }
 
@@ -749,6 +837,7 @@ private fun SyncedLyrics(result: LyricsResult, big: Boolean) {
 @Composable
 private fun LyricLine(
     text: String,
+    romanized: String?,
     words: List<LyricWord>,
     position: Long,
     current: Boolean,
@@ -779,12 +868,7 @@ private fun LyricLine(
     } else {
         AnnotatedString(text.ifEmpty { "♪" })
     }
-    Text(
-        shown,
-        fontSize = size.sp,
-        lineHeight = (size * 1.25f).sp,
-        fontWeight = FontWeight.Bold,
-        color = LocalContentColor.current,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .focusRing()
@@ -797,7 +881,25 @@ private fun LyricLine(
                 transformOrigin = TransformOrigin(0f, 0.5f)
             }
             .then(if (blurred) Modifier.blur(blur, BlurredEdgeTreatment.Unbounded) else Modifier),
-    )
+    ) {
+        Text(
+            shown,
+            fontSize = size.sp,
+            lineHeight = (size * 1.25f).sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalContentColor.current,
+        )
+        // la pronunciación, más pequeña, debajo de la línea en otro sistema de escritura
+        if (romanized != null) {
+            Text(
+                romanized,
+                fontSize = (size * 0.55f).sp,
+                lineHeight = (size * 0.7f).sp,
+                fontWeight = FontWeight.Medium,
+                color = LocalContentColor.current.copy(alpha = 0.75f),
+            )
+        }
+    }
 }
 
 // ── Cola ───────────────────────────────────────────────────────────────────────────────────
@@ -1004,4 +1106,35 @@ private fun AddSongs(slug: String, onClose: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Listo") } },
     )
+}
+
+/**
+ * «Fondo ambiental»: manchas grandes con los colores de la portada que se desplazan despacio,
+ * como en la app de escritorio. Funciona en cualquier Android (no necesita desenfoque).
+ */
+@Composable
+private fun Ambient(colors: List<Color>) {
+    val motion = rememberInfiniteTransition(label = "ambient")
+    val phase by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(durationMillis = 24_000, easing = LinearEasing)),
+        label = "ambient-phase",
+    )
+    Canvas(Modifier.fillMaxSize()) {
+        val reach = maxOf(size.width, size.height)
+        colors.forEachIndexed { index, color ->
+            val angle = phase + index * 1.7f
+            val center = Offset(
+                size.width * (0.5f + 0.35f * kotlin.math.cos(angle + index)),
+                size.height * (0.45f + 0.3f * kotlin.math.sin(angle * 0.8f + index * 2)),
+            )
+            val radius = reach * (0.55f + 0.1f * kotlin.math.sin(angle * 1.3f))
+            drawCircle(
+                brush = Brush.radialGradient(listOf(color.copy(alpha = 0.35f), Color.Transparent), center, radius),
+                radius = radius,
+                center = center,
+            )
+        }
+    }
 }

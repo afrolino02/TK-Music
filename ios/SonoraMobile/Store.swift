@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import SwiftUI
 
 /// Un aviso del motor que espera respuesta del usuario durante el inicio de sesión.
@@ -74,6 +75,11 @@ final class Store: ObservableObject {
         refresh()
         restoreStored()
         if UserDefaults.standard.bool(forKey: "local.on") { openLocal(quiet: true) }
+        network.pathUpdateHandler = { [weak self] path in
+            let connected = path.status == .satisfied
+            DispatchQueue.main.async { self?.online = connected }
+        }
+        network.start(queue: DispatchQueue(label: "tk-music.network"))
     }
 
     var signedIn: [ProviderInfo] { providers.filter(\.signedIn) }
@@ -96,6 +102,46 @@ final class Store: ObservableObject {
         didSet { UserDefaults.standard.set(appearance.rawValue, forKey: "look.mode") }
     }
     /// El nombre del saludo de Inicio («Hola, …»).
+    /// Si el teléfono tiene internet ahora mismo.
+    @Published private(set) var online = true
+    /// El modo sin conexión elegido a mano en Ajustes, aunque haya internet (para ahorrar datos).
+    @Published var offlineMode = UserDefaults.standard.bool(forKey: "offline.mode") {
+        didSet { UserDefaults.standard.set(offlineMode, forKey: "offline.mode") }
+    }
+    /// Si la app se muestra sin conexión: sin internet, o con el modo puesto a mano.
+    var offline: Bool { !online || offlineMode }
+    /// Avisa cuando el teléfono gana o pierde internet.
+    private let network = NWPathMonitor()
+
+    /// «Colores de la portada»: el color de lo que suena tiñe toda la app.
+    @Published var adaptive = UserDefaults.standard.bool(forKey: "look.adaptive") {
+        didSet { UserDefaults.standard.set(adaptive, forKey: "look.adaptive") }
+    }
+    /// El color más vivo de la portada de lo que suena, para el tema adaptativo.
+    @Published var coverAccent: Color?
+    /// «Fondo ambiental»: los colores de la portada se mueven despacio detrás del reproductor.
+    @Published var ambient = UserDefaults.standard.object(forKey: "look.ambient") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(ambient, forKey: "look.ambient") }
+    }
+    /// Cómo se dibuja el visualizador.
+    @Published var visualizer = VisualizerStyle(rawValue: UserDefaults.standard.string(forKey: "look.visualizer") ?? "") ?? .bars {
+        didSet { UserDefaults.standard.set(visualizer.rawValue, forKey: "look.visualizer") }
+    }
+    /// El color de acento de la app: el de la portada con «Colores de la portada», si no el del tema.
+    var accent: Color { adaptive ? (coverAccent ?? palette.color) : palette.color }
+
+    /// Saca el color más vivo de la portada de lo que suena, para «Colores de la portada».
+    func refreshAccent() async {
+        guard adaptive, let url = state.track?.cover else { return }
+        let image = await ImagePipeline.shared.image(url)
+        let color = image?.vividColors.first
+        withAnimation(.easeInOut(duration: 0.8)) { coverAccent = color }
+    }
+
+    /// Si se muestra la pronunciación de las letras en otros sistemas de escritura.
+    @Published var showRomanized = UserDefaults.standard.object(forKey: "lyrics.romanized") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showRomanized, forKey: "lyrics.romanized") }
+    }
     @Published var userName = UserDefaults.standard.string(forKey: "look.name") ?? "" {
         didSet { UserDefaults.standard.set(userName, forKey: "look.name") }
     }

@@ -68,6 +68,7 @@ object Store : EngineListener {
         refresh()
         loadRecent()
         loadLook()
+        watchNetwork()
         restoreStored()
         // la música del teléfono aparece sola si ya hay permiso (salvo que se haya quitado)
         if (!preferences.getBoolean("local.off", false) && canReadMusic()) openLocal(quiet = true)
@@ -272,6 +273,12 @@ object Store : EngineListener {
         // Lo de la música del teléfono también se lee aquí: los ajustes solo existen tras init.
         hiddenFolders = preferences.getStringSet("local.hidden", null)?.sorted() ?: emptyList()
         skipWhatsapp = preferences.getBoolean("local.whatsapp", true)
+        showRomanized = preferences.getBoolean("lyrics.romanized", true)
+        offlineMode = preferences.getBoolean("offline.mode", false)
+        adaptive = preferences.getBoolean("look.adaptive", false)
+        ambient = preferences.getBoolean("look.ambient", true)
+        visualizer = runCatching { VisualizerStyle.valueOf(preferences.getString("look.visualizer", "")!!) }
+            .getOrDefault(VisualizerStyle.BARS)
     }
 
     fun choosePalette(value: Palette) {
@@ -341,6 +348,82 @@ object Store : EngineListener {
     /** Si se dejan fuera las notas de voz y los audios de WhatsApp (por defecto, sí). */
     var skipWhatsapp by mutableStateOf(true)
         private set
+
+    /** Si el teléfono tiene internet ahora mismo (lo avisa Android al cambiar). */
+    var online by mutableStateOf(true)
+        private set
+
+    /** El modo sin conexión elegido a mano en Ajustes, aunque haya internet (para ahorrar datos). */
+    var offlineMode by mutableStateOf(false)
+        private set
+
+    /** Si la app se muestra sin conexión: sin internet, o con el modo puesto a mano. */
+    val offline get() = !online || offlineMode
+
+    fun changeOfflineMode(on: Boolean) {
+        offlineMode = on
+        preferences.edit().putBoolean("offline.mode", on).apply()
+    }
+
+    /** Sigue la conexión a internet del teléfono para pasar solo al modo sin conexión y volver. */
+    private fun watchNetwork() {
+        val manager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return
+        fun connected(): Boolean {
+            val network = manager.activeNetwork ?: return false
+            val abilities = manager.getNetworkCapabilities(network) ?: return false
+            return abilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }
+        online = connected()
+        runCatching {
+            manager.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) {
+                    scope.launch { online = true }
+                }
+                override fun onLost(network: android.net.Network) {
+                    scope.launch { online = connected() }
+                }
+            })
+        }
+    }
+
+    /** «Colores de la portada»: el color de lo que suena tiñe toda la app. */
+    var adaptive by mutableStateOf(false)
+        private set
+
+    /** El color sacado de la portada de lo que suena, para el tema adaptativo. */
+    var coverAccent by mutableStateOf<androidx.compose.ui.graphics.Color?>(null)
+
+    /** «Fondo ambiental»: los colores de la portada se mueven despacio detrás del reproductor. */
+    var ambient by mutableStateOf(true)
+        private set
+
+    /** Cómo se dibuja el visualizador. */
+    var visualizer by mutableStateOf(VisualizerStyle.BARS)
+        private set
+
+    fun changeAdaptive(on: Boolean) {
+        adaptive = on
+        preferences.edit().putBoolean("look.adaptive", on).apply()
+    }
+
+    fun changeAmbient(on: Boolean) {
+        ambient = on
+        preferences.edit().putBoolean("look.ambient", on).apply()
+    }
+
+    fun chooseVisualizer(style: VisualizerStyle) {
+        visualizer = style
+        preferences.edit().putString("look.visualizer", style.name).apply()
+    }
+
+    /** Si se muestra la pronunciación de las letras en otros sistemas de escritura. */
+    var showRomanized by mutableStateOf(true)
+        private set
+
+    fun changeShowRomanized(show: Boolean) {
+        showRomanized = show
+        preferences.edit().putBoolean("lyrics.romanized", show).apply()
+    }
 
     /** Quita una carpeta de la música: la agregada a mano se olvida, la que halló Android se oculta. */
     fun removeLocalFolder(path: String) {

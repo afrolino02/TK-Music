@@ -382,9 +382,32 @@ struct VisualizerView: View {
     @State private var bands: [Float] = []
 
     var body: some View {
+        let style = store.visualizer
         Canvas { context, size in
             let count = bands.count
             guard count > 0 else { return }
+            if style != .bars {
+                // la onda: una línea suave que pasa por el nivel de cada banda
+                let step = size.width / CGFloat(max(count - 1, 1))
+                func y(_ level: Float) -> CGFloat {
+                    size.height - CGFloat(min(max(level, 0), 1)) * size.height * 0.95 - 1
+                }
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: y(bands[0])))
+                for index in 1..<count {
+                    let x0 = CGFloat(index - 1) * step
+                    let x1 = CGFloat(index) * step
+                    let mid = (x0 + x1) / 2
+                    path.addCurve(
+                        to: CGPoint(x: x1, y: y(bands[index])),
+                        control1: CGPoint(x: mid, y: y(bands[index - 1])),
+                        control2: CGPoint(x: mid, y: y(bands[index]))
+                    )
+                }
+                context.stroke(path, with: .color(color.opacity(0.9)), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                if style == .wave { return }
+            }
+            let faded: CGFloat = style == .both ? 0.45 : 1
             let gap: CGFloat = 3
             let width = max(1, (size.width - gap * CGFloat(count - 1)) / CGFloat(count))
             for (index, level) in bands.enumerated() {
@@ -398,7 +421,7 @@ struct VisualizerView: View {
                 )
                 context.fill(
                     Path(roundedRect: rect, cornerRadius: width / 2),
-                    with: .color(color.opacity(0.35 + 0.5 * value))
+                    with: .color(color.opacity((0.35 + 0.5 * value) * faded))
                 )
             }
         }
@@ -417,9 +440,11 @@ struct VisualizerView: View {
 /// La portada, muy desenfocada y con un velo, de fondo. Avisa si es clara, para poner encima
 /// texto oscuro.
 struct Backdrop: View {
+    @EnvironmentObject private var store: Store
     let url: String?
     @Binding var light: Bool
     @State private var image: UIImage?
+    @State private var colors: [Color] = []
 
     var body: some View {
         ZStack {
@@ -442,6 +467,9 @@ struct Backdrop: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
+            if store.ambient, !colors.isEmpty {
+                AmbientField(colors: colors)
+            }
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.4), value: image)
@@ -451,11 +479,89 @@ struct Backdrop: View {
                 image = await ImagePipeline.shared.image(url)
             }
             light = (image?.averageLuminance ?? 0) > 0.6
+            colors = image?.vividColors ?? []
         }
     }
 }
 
+/// «Fondo ambiental»: manchas grandes con los colores de la portada que se desplazan despacio,
+/// como en la app de escritorio.
+struct AmbientField: View {
+    let colors: [Color]
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+            let phase = timeline.date.timeIntervalSinceReferenceDate * (2 * .pi / 24)
+            Canvas { context, size in
+                let reach = max(size.width, size.height)
+                for (index, color) in colors.enumerated() {
+                    let angle = phase + Double(index) * 1.7
+                    let center = CGPoint(
+                        x: size.width * (0.5 + 0.35 * cos(angle + Double(index))),
+                        y: size.height * (0.45 + 0.3 * sin(angle * 0.8 + Double(index) * 2))
+                    )
+                    let radius = reach * (0.55 + 0.1 * sin(angle * 1.3))
+                    let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+                    context.fill(
+                        Path(ellipseIn: rect),
+                        with: .radialGradient(
+                            Gradient(colors: [color.opacity(0.35), .clear]),
+                            center: center,
+                            startRadius: 0,
+                            endRadius: radius
+                        )
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 extension UIImage {
+    /// Hasta cuatro colores vivos de la imagen, el más saturado primero, para el fondo ambiental y
+    /// los colores de la portada.
+    var vividColors: [Color] {
+        guard let source = cgImage else { return [] }
+        let side = 8
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: side,
+                height: side,
+                bitsPerComponent: 8,
+                bytesPerRow: side * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            context.interpolationQuality = .medium
+            context.draw(source, in: CGRect(x: 0, y: 0, width: side, height: side))
+            return true
+        }
+        guard drawn else { return [] }
+        var found: [(hue: CGFloat, score: CGFloat, color: UIColor)] = []
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let color = UIColor(
+                red: CGFloat(pixels[index]) / 255,
+                green: CGFloat(pixels[index + 1]) / 255,
+                blue: CGFloat(pixels[index + 2]) / 255,
+                alpha: 1
+            )
+            var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+            color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+            found.append((hue, saturation * (0.4 + brightness), color))
+        }
+        found.sort { $0.score > $1.score }
+        var picked: [(hue: CGFloat, color: UIColor)] = []
+        for candidate in found where picked.count < 4 {
+            let distinct = picked.allSatisfy { abs($0.hue - candidate.hue) > 0.08 }
+            if distinct { picked.append((candidate.hue, candidate.color)) }
+        }
+        return picked.map { Color(uiColor: $0.color) }
+    }
+
     /// El brillo medio de la imagen (0 negro, 1 blanco).
     var averageLuminance: CGFloat? {
         guard let source = cgImage else { return nil }

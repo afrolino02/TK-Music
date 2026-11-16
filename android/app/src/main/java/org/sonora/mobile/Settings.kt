@@ -102,6 +102,14 @@ fun SettingsScreen() {
                     modifier = Modifier.focusRing().clickable { nav.navigate("settings/scrobble") },
                 )
             }
+            item {
+                ListItem(
+                    headlineContent = { Text("Modo sin conexión") },
+                    supportingContent = { Text("Muestra solo lo que suena sin internet, para ahorrar datos. Se activa solo cuando no hay conexión.") },
+                    trailingContent = { Switch(checked = Store.offlineMode, onCheckedChange = { Store.changeOfflineMode(it) }) },
+                    modifier = Modifier.focusRing().clickable { Store.changeOfflineMode(!Store.offlineMode) },
+                )
+            }
             item { SectionTitle("Diagnóstico") }
             item { ListItem(headlineContent = { Text("Motor (Sonora)") }, trailingContent = { Text(engineVersion()) }) }
             items(outputs) { output ->
@@ -258,6 +266,26 @@ private fun LookSection() {
                     selected = Store.mode == mode,
                     onClick = { Store.chooseMode(mode) },
                     label = { Text(mode.label) },
+                )
+            }
+        }
+        LookSwitch(
+            "Colores de la portada",
+            "Toda la app toma el color de la portada de lo que suena.",
+            Store.adaptive,
+        ) { Store.changeAdaptive(it) }
+        LookSwitch(
+            "Fondo ambiental",
+            "En el reproductor, los colores de la portada se mueven despacio en el fondo.",
+            Store.ambient,
+        ) { Store.changeAmbient(it) }
+        Text("Visualizador", style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            VisualizerStyle.entries.forEach { style ->
+                androidx.compose.material3.FilterChip(
+                    selected = Store.visualizer == style,
+                    onClick = { Store.chooseVisualizer(style) },
+                    label = { Text(style.label) },
                 )
             }
         }
@@ -601,5 +629,20 @@ fun ScrobbleServiceScreen(id: String) {
                 Text(if (linking) "Vinculando…" else "Vincular")
             }
         }
+    }
+}
+
+/** Un interruptor de Personalización, con su explicación debajo. */
+@Composable
+private fun LookSwitch(title: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().focusRing().clickable { onChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

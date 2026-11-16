@@ -58,6 +58,8 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -115,6 +117,10 @@ fun HomeScreen() {
                 ),
         )
         Column(Modifier.fillMaxSize()) {
+            if (Store.offline) {
+                OfflineHome()
+                return@Column
+            }
             if (Store.signedIn.isEmpty()) {
                 Greeting()
                 NeedsAccount()
@@ -925,4 +931,64 @@ fun PlaylistPicker(pending: PendingAdd) {
         },
         confirmButton = { TextButton(onClick = { Store.adding = null }) { Text("Cancelar") } },
     )
+}
+
+/**
+ * El inicio sin internet: lo ya escuchado de YouTube Music que quedó guardado en el teléfono, y
+ * la música descargada, que suenan sin conexión.
+ */
+@Composable
+private fun OfflineHome() {
+    val nav = LocalNav.current
+    Loader(key = "offline-${Store.libraryRevision}", load = { it.offlineTracks() }) { tracks ->
+        LazyColumn(Modifier.fillMaxSize()) {
+            item { Greeting() }
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        if (Store.online) "Modo sin conexión" else "Estás sin conexión",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "Suena lo que ya está guardado en tu teléfono.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (Store.online) {
+                        TextButton(onClick = { Store.changeOfflineMode(false) }) { Text("Volver a conectarse") }
+                    }
+                }
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("Música descargada") },
+                    supportingContent = { Text("Las canciones guardadas en el teléfono") },
+                    leadingContent = { Icon(Icons.Filled.Download, null) },
+                    modifier = Modifier.focusRing().clickable { Store.selected = "local"; nav.navigate("library") },
+                )
+            }
+            if (tracks.isEmpty()) {
+                item {
+                    Text(
+                        "Todavía no hay canciones guardadas. Las que escuches con internet se guardan solas y después suenan sin conexión.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            } else {
+                item {
+                    Text(
+                        "Escuchadas y guardadas",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                    )
+                }
+                trackItems(tracks, "youtube")
+            }
+            item { Spacer(Modifier.size(96.dp)) }
+        }
+    }
 }

@@ -328,6 +328,11 @@ fn front(stream: &Stream) -> (Option<Segments>, Option<Trim>) {
         .unwrap_or_default()
 }
 
+/// How a track played at `quality` is kept in the vault, to ask it whether a copy is there.
+pub fn kept_variant(quality: Quality) -> String {
+    variant(ceiling(quality))
+}
+
 /// What tells two kept copies of one track apart: the bitrate ceiling it was fetched under.
 fn variant(ceiling: Option<u32>) -> String {
     ceiling.map_or_else(|| "best".to_owned(), |ceiling| ceiling.to_string())

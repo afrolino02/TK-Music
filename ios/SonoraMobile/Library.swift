@@ -345,7 +345,9 @@ struct HomeView: View {
                 )
                 .frame(height: 320)
                 .ignoresSafeArea(edges: .top)
-                if store.signedIn.isEmpty {
+                if store.offline {
+                    OfflineHome()
+                } else if store.signedIn.isEmpty {
                     VStack(alignment: .leading) {
                         Greeting()
                         NeedsAccount()
@@ -1119,6 +1121,48 @@ struct ArtistView: View {
             case .failure(let error):
                 store.problem = describe(error)
             }
+        }
+    }
+}
+
+/// El inicio sin internet: lo ya escuchado de YouTube Music que quedó guardado en el teléfono, y
+/// la música descargada, que suenan sin conexión.
+private struct OfflineHome: View {
+    @EnvironmentObject private var store: Store
+
+    var body: some View {
+        Loader(key: "offline-\(store.libraryRevision)", load: { $0.offlineTracks() }) { tracks in
+            List {
+                Section {
+                    Greeting().listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                }
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(store.online ? "Modo sin conexión" : "Estás sin conexión")
+                            .font(.title2.bold())
+                        Text("Suena lo que ya está guardado en tu teléfono.")
+                            .foregroundStyle(.secondary)
+                    }
+                    if store.online {
+                        Button("Volver a conectarse") { store.offlineMode = false }
+                    }
+                    Button {
+                        store.selected = "local"
+                    } label: {
+                        Label("Música descargada", systemImage: "arrow.down.circle")
+                    }
+                }
+                Section("Escuchadas y guardadas") {
+                    if tracks.isEmpty {
+                        Text("Todavía no hay canciones guardadas. Las que escuches con internet se guardan solas y después suenan sin conexión.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        TrackList(tracks: tracks, slug: "youtube")
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
         }
     }
 }

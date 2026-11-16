@@ -19,7 +19,9 @@ static FOUND: LazyLock<Mutex<HashMap<String, Option<String>>>> = LazyLock::new(M
 pub(super) fn fix(inner: &Arc<Inner>) {
     let (slug, track) = {
         let queue = lock(&inner.queue);
-        let (Some(slug), Some(track)) = (queue.slug.clone(), queue.tracks.get(queue.index).cloned()) else {
+        let (Some(slug), Some(track)) =
+            (queue.slug.clone(), queue.tracks.get(queue.index).cloned())
+        else {
             return;
         };
         (slug, track)
@@ -70,7 +72,11 @@ fn album_art(title: &str, songs: &[music::Track]) -> Option<String> {
     songs
         .iter()
         .take(5)
-        .filter(|song| song.cover.as_deref().is_some_and(|cover| !is_video_frame(cover)))
+        .filter(|song| {
+            song.cover
+                .as_deref()
+                .is_some_and(|cover| !is_video_frame(cover))
+        })
         .find(|song| {
             let name = format!(" {} ", plain(&song.name));
             name.trim() != "" && (title.contains(&name) || name.contains(&title))

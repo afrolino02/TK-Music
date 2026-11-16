@@ -16,7 +16,8 @@ struct SonoraMobileApp: App {
                 }
             }
             .environmentObject(store)
-            .tint(store.palette.color)
+            .tint(store.accent)
+            .task(id: store.adaptive ? store.state.track?.cover : nil) { await store.refreshAccent() }
             .preferredColorScheme(store.appearance.scheme)
         }
     }

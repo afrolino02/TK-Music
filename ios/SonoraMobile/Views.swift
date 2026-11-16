@@ -340,6 +340,11 @@ struct AccountsView: View {
                 if let local = store.providers.first(where: { $0.slug == "local" }) {
                     LocalSection(provider: local)
                 }
+                Section {
+                    Toggle("Modo sin conexión", isOn: $store.offlineMode)
+                } footer: {
+                    Text("Muestra solo lo que suena sin internet, para ahorrar datos. Se activa solo cuando no hay conexión.")
+                }
                 Section("Ajustes") {
                     NavigationLink {
                         AudioSettingsView()
@@ -458,6 +463,23 @@ struct LookSection: View {
                 ForEach(Appearance.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
+            Toggle(isOn: $store.adaptive) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Colores de la portada")
+                    Text("Toda la app toma el color de la portada de lo que suena.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Toggle(isOn: $store.ambient) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Fondo ambiental")
+                    Text("En el reproductor, los colores de la portada se mueven despacio en el fondo.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Picker("Visualizador", selection: $store.visualizer) {
+                ForEach(VisualizerStyle.allCases) { Text($0.label).tag($0) }
+            }
         }
     }
 }

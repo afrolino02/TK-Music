@@ -52,7 +52,9 @@ mod context {
         });
         match outcome.into_outcome() {
             jni::Outcome::Ok(()) => {}
-            jni::Outcome::Err(error) => log::warn!("android: no se pudo preparar el motor: {error}"),
+            jni::Outcome::Err(error) => {
+                log::warn!("android: no se pudo preparar el motor: {error}")
+            }
             jni::Outcome::Panic(_) => log::warn!("android: el motor falló al prepararse"),
         }
     }

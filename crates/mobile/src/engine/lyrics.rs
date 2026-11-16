@@ -21,7 +21,7 @@ const GRACE: Duration = Duration::from_millis(900);
 /// Cuántas letras se recuerdan en memoria.
 const REMEMBERED: usize = 300;
 /// Cambia si cambia la forma de lo guardado en disco, para no leer letras viejas.
-const DISK_VERSION: u32 = 2;
+const DISK_VERSION: u32 = 3;
 
 /// Las letras ya buscadas en esta sesión. Cada canción tiene su celda: si dos llamadas piden la
 /// misma (la búsqueda anticipada y la pantalla de la letra), la segunda espera a la primera.
@@ -40,6 +40,10 @@ pub struct LyricLine {
     /// forman `text`, espacios incluidos.
     #[serde(default)]
     pub words: Vec<LyricWord>,
+    /// Cómo se lee la línea en nuestro alfabeto cuando está en otro sistema de escritura
+    /// (japonés, coreano, chino, cirílico, griego, árabe…). `None` si no hace falta.
+    #[serde(default)]
+    pub romanized: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, uniffi::Record)]
@@ -98,7 +102,13 @@ pub(super) fn prefetch(inner: &Inner) {
         let Some(slug) = queue.slug.clone() else {
             return;
         };
-        let tracks: Vec<TrackItem> = queue.tracks.iter().skip(queue.index).take(2).cloned().collect();
+        let tracks: Vec<TrackItem> = queue
+            .tracks
+            .iter()
+            .skip(queue.index)
+            .take(2)
+            .cloned()
+            .collect();
         (slug, tracks)
     };
     let Ok(provider) = inner.provider(&slug) else {
@@ -129,7 +139,11 @@ async fn resolve(
         let disk = format!("mobile-lyrics:{DISK_VERSION}:{key}");
         let stored = tokio::task::spawn_blocking({
             let disk = disk.clone();
-            move || DISK.read(&disk, |text| serde_json::from_str::<LyricsResult>(text).ok())
+            move || {
+                DISK.read(&disk, |text| {
+                    serde_json::from_str::<LyricsResult>(text).ok()
+                })
+            }
         })
         .await;
         if let Ok(Ok(Some(Some(found)))) = stored {
@@ -221,7 +235,11 @@ async fn gather(sources: Vec<Arc<dyn LyricsProvider>>, query: LyricsQuery) -> Ve
             break;
         };
         if let Ok(mut found) = found {
-            if deadline.is_none() && found.iter().any(|hit| matches!(hit.lyrics, Lyrics::Synced { .. })) {
+            if deadline.is_none()
+                && found
+                    .iter()
+                    .any(|hit| matches!(hit.lyrics, Lyrics::Synced { .. }))
+            {
                 deadline = Some(Instant::now() + GRACE);
             }
             hits.append(&mut found);
@@ -251,20 +269,37 @@ fn result(hit: LyricsHit) -> LyricsResult {
                             text: word.text.clone(),
                         })
                         .collect(),
+                    romanized: line
+                        .romanized
+                        .as_ref()
+                        .map(|romanized| romanized.text.trim().to_owned())
+                        .filter(|romanized| !romanized.is_empty()),
                 })
                 .collect(),
         ),
-        Lyrics::Plain { text, .. } => (
-            false,
-            text.lines()
-                .map(|line| LyricLine {
-                    start_ms: 0,
-                    end_ms: None,
-                    text: line.to_owned(),
-                    words: Vec::new(),
-                })
-                .collect(),
-        ),
+        Lyrics::Plain { text, romanized } => {
+            // la romanización de una letra sin tiempos trae una línea por cada línea del texto
+            let readings: Vec<&str> = romanized
+                .as_ref()
+                .map(|romanized| romanized.text.lines().collect())
+                .unwrap_or_default();
+            (
+                false,
+                text.lines()
+                    .enumerate()
+                    .map(|(index, line)| LyricLine {
+                        start_ms: 0,
+                        end_ms: None,
+                        text: line.to_owned(),
+                        words: Vec::new(),
+                        romanized: readings
+                            .get(index)
+                            .map(|reading| reading.trim().to_owned())
+                            .filter(|reading| !reading.is_empty()),
+                    })
+                    .collect(),
+            )
+        }
     };
     LyricsResult {
         synced,

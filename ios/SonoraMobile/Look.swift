@@ -35,6 +35,21 @@ enum Palette: String, CaseIterable, Identifiable {
     }
 }
 
+/// Cómo dibuja el visualizador del reproductor el sonido.
+enum VisualizerStyle: String, CaseIterable, Identifiable {
+    case bars, wave, both
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .bars: "Barras"
+        case .wave: "Onda"
+        case .both: "Barras y onda"
+        }
+    }
+}
+
 /// Claro, oscuro o como el iPhone.
 enum Appearance: String, CaseIterable, Identifiable {
     case system, light, dark
