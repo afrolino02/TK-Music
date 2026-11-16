@@ -368,11 +368,12 @@ object Store : EngineListener {
     /** Sigue la conexión a internet del teléfono para pasar solo al modo sin conexión y volver. */
     private fun watchNetwork() {
         val manager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return
-        fun connected(): Boolean {
-            val network = manager.activeNetwork ?: return false
-            val abilities = manager.getNetworkCapabilities(network) ?: return false
-            return abilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        }
+        // si Android no deja mirar la red, se asume que hay conexión (nunca debe tumbar la app)
+        fun connected(): Boolean = runCatching {
+            val network = manager.activeNetwork ?: return@runCatching false
+            val abilities = manager.getNetworkCapabilities(network) ?: return@runCatching false
+            abilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }.getOrDefault(true)
         online = connected()
         runCatching {
             manager.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
