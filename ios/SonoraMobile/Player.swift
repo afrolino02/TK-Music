@@ -491,16 +491,17 @@ struct AmbientField: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let phase = timeline.date.timeIntervalSinceReferenceDate * (2 * .pi / 24)
+            let phase: Double = timeline.date.timeIntervalSinceReferenceDate * (2 * Double.pi / 24)
             Canvas { context, size in
                 let reach = max(size.width, size.height)
                 for (index, color) in colors.enumerated() {
-                    let angle = phase + Double(index) * 1.7
-                    let center = CGPoint(
-                        x: size.width * (0.5 + 0.35 * cos(angle + Double(index))),
-                        y: size.height * (0.45 + 0.3 * sin(angle * 0.8 + Double(index) * 2))
-                    )
-                    let radius = reach * (0.55 + 0.1 * sin(angle * 1.3))
+                    let offset = Double(index)
+                    let angle: Double = phase + offset * 1.7
+                    let across: Double = 0.5 + 0.35 * cos(angle + offset)
+                    let down: Double = 0.45 + 0.3 * sin(angle * 0.8 + offset * 2)
+                    let center = CGPoint(x: size.width * CGFloat(across), y: size.height * CGFloat(down))
+                    let grow: Double = 0.55 + 0.1 * sin(angle * 1.3)
+                    let radius: CGFloat = reach * CGFloat(grow)
                     let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
                     context.fill(
                         Path(ellipseIn: rect),
