@@ -520,11 +520,28 @@ pub(crate) fn library_playlist(source: ytmusic::Playlist, account: &str) -> Opti
         return None;
     }
     let mut playlist = wire::playlist(source, false, false);
+    // YouTube marks the user's own playlists with a delete action, but the library does not
+    // always send it. One signed by the account, or by nobody, is still theirs, unless YouTube
+    // generated it.
+    let signed = playlist.owner.trim();
+    if !playlist.owned
+        && !account.is_empty()
+        && !generated(&playlist.id)
+        && (signed.is_empty() || signed.eq_ignore_ascii_case(account.trim()))
+    {
+        playlist.owned = true;
+    }
     if playlist.owned && playlist.owner.is_empty() {
         playlist.owner = account.to_owned();
     }
 
     Some(playlist)
+}
+
+/// Whether YouTube made playlist `id` itself (liked songs, mixes, albums, episodes), so nobody
+/// can add to it.
+fn generated(id: &str) -> bool {
+    id == "LM" || ["RD", "OLAK", "SE", "LL", "WL"].iter().any(|prefix| id.starts_with(prefix))
 }
 
 /// Swaps every music video for the song YouTube Music pairs with it, as `swap_playable` does, and

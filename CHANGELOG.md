@@ -31,7 +31,8 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 - Música descargada (Android): la app no veía las canciones de una carpeta si la había mirado antes de tener el permiso de música. Ahora vuelve a leer cada carpeta en cada búsqueda.
 - Música descargada (Android): en Ajustes se ve cuántas canciones encontró la app y cuántos audios ve Android, para saber si falta algo.
 - Música descargada (Android): siempre se revisan las carpetas Descargas y Música, también en la tarjeta SD, y entra el audio que Android no marca como música. Antes faltaban canciones o no salía ninguna.
-- Las playlists que ya tienes salían vacías y no se podían crear, porque la app abría en la pestaña Descargadas.
+- «Agregar a una playlist» decía que no tenías playlists propias aunque sí las tuvieras: YouTube no siempre marca cuáles son tuyas, y ahora también cuentan las firmadas con tu nombre o sin autor.
+- La app abría en la pestaña Descargadas, que no tiene playlists.
 - Lo guardado para sin conexión ahora suena también en modo avión, sin entrar a la cuenta.
 - Sin internet ya no aparece un aviso de error de la cuenta al abrir la app.
 
