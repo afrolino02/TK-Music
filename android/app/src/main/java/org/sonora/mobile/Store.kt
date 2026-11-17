@@ -49,7 +49,19 @@ object Store : EngineListener {
     var prompt by mutableStateOf<PendingPrompt?>(null)
     var problem by mutableStateOf<String?>(null)
     var signingIn by mutableStateOf<String?>(null)
-    var selected by mutableStateOf("youtube")
+    private var chosen by mutableStateOf("youtube")
+
+    /** El servicio elegido arriba. Se recuerda para abrir la app directamente en él. */
+    var selected: String
+        get() = chosen
+        set(value) {
+            chosen = value
+            if (value != "local" && ::app.isInitialized) preferences.edit().putString("selected", value).apply()
+        }
+
+    /** Mientras se recuperan las sesiones guardadas al abrir la app. */
+    var restoring by mutableStateOf(false)
+        private set
     var session by mutableStateOf<SessionInfo?>(null)
     var sessionBusy by mutableStateOf(false)
     var audio by mutableStateOf<AudioSettings?>(null)
@@ -61,6 +73,7 @@ object Store : EngineListener {
     fun start(context: Context) {
         if (::engine.isInitialized) return
         app = context.applicationContext
+        chosen = preferences.getString("selected", null) ?: chosen
         engine = Engine(this)
         state = engine.state()
         val saved = savedAudio()
@@ -92,10 +105,18 @@ object Store : EngineListener {
     }
 
     private fun restoreStored() {
-        for (provider in providers.filter { it.stored }) {
+        val stored = providers.filter { it.stored && !it.signedIn }
+        var pending = stored.size
+        restoring = pending > 0
+        for (provider in stored) {
             launch {
-                run { it.restore(provider.slug) }.onFailure { problem = "${provider.name}: ${describe(it)}" }
+                run { it.restore(provider.slug) }.onFailure {
+                    // sin internet no se avisa: lo descargado suena igual
+                    if (online) problem = "${provider.name}: ${describe(it)}"
+                }
                 refresh()
+                pending--
+                if (pending == 0) restoring = false
             }
         }
     }

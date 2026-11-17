@@ -92,11 +92,18 @@ import uniffi.sonora_mobile.SavedKind
 import uniffi.sonora_mobile.SearchResults
 import uniffi.sonora_mobile.Shelf
 import uniffi.sonora_mobile.TrackItem
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.runtime.mutableIntStateOf
 
 // ── Inicio ─────────────────────────────────────────────────────────────────────────────────
 
 /** Lo que muestra Inicio: el feed del servicio y lo propio (me gusta y playlists). */
 private class HomeData(val shelves: List<Shelf>, val liked: List<TrackItem>, val playlists: List<PlaylistItem>)
+
+/** El inicio guardado en el teléfono la última vez, para enseñarlo sin esperar a internet. */
+private fun cachedHome(slug: String): HomeData? =
+    runCatching { Store.engine.cachedHome(slug) }.getOrNull()?.let { HomeData(it.shelves, it.liked, it.playlists) }
 
 /** El tamaño de las tarjetas de Inicio: caben tres y asoma la cuarta. */
 private val homeCard = 124.dp
@@ -121,18 +128,46 @@ fun HomeScreen() {
                 OfflineHome()
                 return@Column
             }
-            if (Store.signedIn.isEmpty()) {
+            if (Store.signedIn.isEmpty() && !Store.restoring) {
                 Greeting()
                 NeedsAccount()
                 return@Column
             }
-            Loader(key = "home-$slug-${Store.libraryRevision}", load = { engine ->
-                HomeData(
-                    shelves = engine.home(slug),
-                    liked = runCatching { engine.libraryTracks(slug) }.getOrDefault(emptyList()),
-                    playlists = runCatching { engine.libraryPlaylists(slug) }.getOrDefault(emptyList()),
-                )
-            }) { data ->
+            // lo último que se vio sale al instante; lo nuevo llega por detrás y lo reemplaza
+            val ready = Store.signedIn.any { it.slug == slug }
+            var cached by remember(slug) { mutableStateOf(cachedHome(slug)) }
+            var failure by remember(slug) { mutableStateOf<String?>(null) }
+            var attempt by remember(slug) { mutableIntStateOf(0) }
+            LaunchedEffect(slug, Store.libraryRevision, ready, attempt) {
+                if (!ready) return@LaunchedEffect
+                failure = null
+                Store.run { it.homeSnapshot(slug) }
+                    .onSuccess { cached = HomeData(it.shelves, it.liked, it.playlists) }
+                    .onFailure { failure = describe(it) }
+            }
+            val shown = cached
+            if (shown == null) {
+                val problem = failure
+                if (problem != null) {
+                    Column(
+                        Modifier.fillMaxSize().padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(problem, textAlign = TextAlign.Center)
+                        TextButton(onClick = { attempt++ }) { Text("Reintentar") }
+                    }
+                } else {
+                    LazyColumn(Modifier.fillMaxSize(), userScrollEnabled = false) {
+                        item { Greeting() }
+                        item { ProviderPicker() }
+                        item { HomeSkeleton() }
+                    }
+                }
+                return@Column
+            }
+            run {
+                val data = shown
                 val pick = remember(data) { recommendation(data.shelves) }
                 LazyColumn(Modifier.fillMaxSize()) {
                     item { Greeting() }
@@ -498,6 +533,10 @@ fun SearchScreen() {
         find(text, selected, loud = false)
     }
 
+    if (Store.offline) {
+        OfflineSearch()
+        return
+    }
     Column(Modifier.fillMaxSize()) {
         Bar("Buscar")
         if (Store.signedIn.isEmpty()) {
@@ -618,6 +657,13 @@ fun LibraryScreen() {
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            val nav = LocalNav.current
+            ListItem(
+                headlineContent = { Text("Tus descargas") },
+                supportingContent = { Text("Para escuchar sin internet") },
+                leadingContent = { Icon(Icons.Filled.DownloadDone, null) },
+                modifier = Modifier.focusRing().clickable { nav.navigate("downloads") },
+            )
             if (Store.signedIn.isEmpty()) {
                 NeedsAccount()
                 return@Column
@@ -962,9 +1008,17 @@ private fun OfflineHome() {
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Música descargada") },
-                    supportingContent = { Text("Las canciones guardadas en el teléfono") },
+                    headlineContent = { Text("Tus descargas") },
+                    supportingContent = { Text("Lo que descargaste en TK-Music, con buscador") },
                     leadingContent = { Icon(Icons.Filled.Download, null) },
+                    modifier = Modifier.focusRing().clickable { nav.navigate("downloads") },
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("Archivos de música del teléfono") },
+                    supportingContent = { Text("MP3 y demás archivos guardados en el teléfono") },
+                    leadingContent = { Icon(Icons.Filled.Folder, null) },
                     modifier = Modifier.focusRing().clickable { Store.selected = "local"; nav.navigate("library") },
                 )
             }

@@ -968,10 +968,19 @@ impl Inner {
         if let Some(old) = active.take() {
             old.player.pause();
         }
-        let factory = lock(&self.sessions)
+        let session = lock(&self.sessions)
             .get(slug)
-            .map(|session| session.playback.clone())
-            .ok_or_else(|| signed_out(slug))?;
+            .map(|session| session.playback.clone());
+        // sin internet la cuenta no se recupera, pero lo descargado suena igual con lo guardado
+        let factory = match session {
+            Some(factory) => factory,
+            None => {
+                let _context = runtime().enter();
+                self.provider(slug)?
+                    .offline_playback()
+                    .ok_or_else(|| signed_out(slug))?
+            }
+        };
         let config = lock(&self.config).clone();
         let (player, events) = {
             let _context = runtime().enter();

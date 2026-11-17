@@ -151,6 +151,7 @@ fun SonoraRoot() {
                 composable("home") { HomeScreen() }
                 composable("search") { SearchScreen() }
                 composable("library") { LibraryScreen() }
+                composable("downloads") { DownloadsScreen() }
                 composable("session") { SessionScreen() }
                 composable("settings") { SettingsScreen() }
                 composable("settings/audio") { AudioScreen() }

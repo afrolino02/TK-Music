@@ -5,11 +5,12 @@
 use std::future::Future;
 
 use music::{Album, GenreItem, Playlist, ReleaseType, SavedArtist};
+use serde::{Deserialize, Serialize};
 
 use super::{Engine, TrackItem, item, lock};
 use crate::{MobileError, failed, runtime};
 
-#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, PartialEq, uniffi::Record, Serialize, Deserialize)]
 pub struct AlbumItem {
     pub id: String,
     pub title: String,
@@ -25,14 +26,14 @@ pub struct AlbumItem {
     pub kind: String,
 }
 
-#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, PartialEq, uniffi::Record, Serialize, Deserialize)]
 pub struct ArtistItem {
     pub id: String,
     pub name: String,
     pub cover: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, PartialEq, uniffi::Record, Serialize, Deserialize)]
 pub struct PlaylistItem {
     pub id: String,
     pub title: String,
@@ -44,7 +45,7 @@ pub struct PlaylistItem {
 }
 
 /// Una tarjeta de un estante del inicio, o un resultado de búsqueda.
-#[derive(Clone, Debug, PartialEq, uniffi::Enum)]
+#[derive(Clone, Debug, PartialEq, uniffi::Enum, Serialize, Deserialize)]
 pub enum MediaItem {
     Track {
         track: TrackItem,
@@ -66,8 +67,21 @@ pub enum MediaItem {
     },
 }
 
+/// Todo lo que enseña la página de inicio de un servicio.
+#[derive(Clone, Debug, PartialEq, uniffi::Record, Serialize, Deserialize)]
+pub struct HomeSnapshot {
+    pub shelves: Vec<Shelf>,
+    pub liked: Vec<TrackItem>,
+    pub playlists: Vec<PlaylistItem>,
+}
+
+fn snapshot_path(slug: &str) -> Option<std::path::PathBuf> {
+    let name: String = slug.chars().filter(char::is_ascii_alphanumeric).collect();
+    Some(dirs::cache_dir()?.join("sonora").join(format!("home-{name}.json")))
+}
+
 /// Una fila del inicio.
-#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, PartialEq, uniffi::Record, Serialize, Deserialize)]
 pub struct Shelf {
     pub title: String,
     pub items: Vec<MediaItem>,
@@ -153,6 +167,38 @@ impl Engine {
         }));
         shelves.retain(|shelf| !shelf.items.is_empty());
         Ok(shelves)
+    }
+
+    /// El inicio completo (estantes, me gusta y playlists), pedido todo a la vez, y guardado en
+    /// el teléfono para enseñarlo al instante la próxima vez que se abra la app.
+    pub fn home_snapshot(&self, slug: String) -> Result<HomeSnapshot, MobileError> {
+        let (shelves, liked, playlists) = std::thread::scope(|scope| {
+            let liked = scope.spawn(|| self.library_tracks(slug.clone()));
+            let playlists = scope.spawn(|| self.library_playlists(slug.clone()));
+            let shelves = self.home(slug.clone());
+            (shelves, liked.join(), playlists.join())
+        });
+        let snapshot = HomeSnapshot {
+            shelves: shelves?,
+            liked: liked.ok().and_then(Result::ok).unwrap_or_default(),
+            playlists: playlists.ok().and_then(Result::ok).unwrap_or_default(),
+        };
+        if let Some(path) = snapshot_path(&slug)
+            && let Ok(bytes) = serde_json::to_vec(&snapshot)
+        {
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(path, bytes);
+        }
+        Ok(snapshot)
+    }
+
+    /// El último inicio que se vio de `slug`, sin pedir nada a internet. Sirve aunque la sesión
+    /// todavía no se haya recuperado.
+    pub fn cached_home(&self, slug: String) -> Option<HomeSnapshot> {
+        let bytes = std::fs::read(snapshot_path(&slug)?).ok()?;
+        serde_json::from_slice(&bytes).ok()
     }
 
     pub fn library_tracks(&self, slug: String) -> Result<Vec<TrackItem>, MobileError> {
