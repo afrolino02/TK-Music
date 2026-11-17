@@ -32,6 +32,17 @@ pub fn set_skip(rule: Option<SkipRule>) {
     }
 }
 
+/// Whether a folder whose date has not changed may be taken from the last scan without listing
+/// it again. A phone answers no: what a folder lists there depends on the permissions the app
+/// had at the time, and granting one later does not change the folder's date.
+static TRUST_FOLDERS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// Makes every scan list each folder again (`false`) instead of trusting an unchanged date. The
+/// files inside still skip their tag reading when they did not change.
+pub fn set_trust_folders(trust: bool) {
+    TRUST_FOLDERS.store(trust, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// Whether the embedder's rule leaves this folder out.
 fn skipped(dir: &Path) -> bool {
     SKIP.read()
@@ -497,7 +508,8 @@ fn walk(
     let Some((mtime, _)) = stat(dir) else {
         return;
     };
-    let known = remembered.unchanged(dir, mtime);
+    let known = TRUST_FOLDERS.load(std::sync::atomic::Ordering::Relaxed)
+        && remembered.unchanged(dir, mtime);
     let at = folders.len();
     folders.push(Folder {
         path: dir.to_path_buf(),

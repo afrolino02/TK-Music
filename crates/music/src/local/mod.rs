@@ -10,7 +10,7 @@ mod tags;
 mod wire;
 
 pub use lyrics::LocalLyrics;
-pub use scan::set_skip;
+pub use scan::{set_skip, set_trust_folders};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

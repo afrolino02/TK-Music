@@ -556,9 +556,14 @@ object Store : EngineListener {
                 null,
             )?.use { cursor ->
                 val column = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
+                var count = 0
                 while (cursor.moveToNext()) {
-                    cursor.getString(column)?.let { java.io.File(it).parent }?.let(found::add)
+                    cursor.getString(column)?.let { path ->
+                        if (!leftOut(path)) count++
+                        java.io.File(path).parent?.let(found::add)
+                    }
                 }
+                androidAudio = count
             }
         }
         // Música y Descargas siempre, en la memoria interna y en cada tarjeta SD, aunque Android
@@ -579,6 +584,13 @@ object Store : EngineListener {
         return outer
     }
 
+    /** Cuántos audios dice Android que hay (sin WhatsApp ni carpetas quitadas), para comparar. */
+    @Volatile private var androidAudio = 0
+
+    /** Lo encontrado en la última búsqueda: canciones en la app y audios que ve Android. */
+    var localFound by mutableStateOf<Pair<Int, Int>?>(null)
+        private set
+
     /** Busca (o vuelve a buscar) las canciones del teléfono. */
     fun openLocal(quiet: Boolean = false) {
         localBusy = true
@@ -591,6 +603,8 @@ object Store : EngineListener {
             }
                 .onSuccess { preferences.edit().putBoolean("local.off", false).apply() }
                 .onFailure { if (!quiet) problem = describe(it) }
+            val inApp = run { it.libraryTracks("local").size }.getOrDefault(0)
+            localFound = inApp to androidAudio
             localBusy = false
             libraryRevision++
             refresh()

@@ -321,7 +321,23 @@ private fun LocalSection(provider: ProviderInfo) {
                 Text("Buscando canciones…")
             }
             provider.signedIn -> {
-                Text("Listo: tus canciones ya están en la app.")
+                val found = Store.localFound
+                Text(
+                    when {
+                        found == null -> "Listo: tus canciones ya están en la app."
+                        found.first == 1 -> "Listo: 1 canción en la app."
+                        else -> "Listo: ${found.first} canciones en la app."
+                    },
+                )
+                if (found != null && found.second > found.first) {
+                    Text(
+                        "Android ve ${found.second} audios en el teléfono. Si faltan canciones, revisa que TK-Music " +
+                            "tenga el permiso «Música y audio» (Ajustes del teléfono › Apps › TK-Music › Permisos) " +
+                            "y que la carpeta no esté en «Carpetas quitadas».",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { scan() }) { Text("Volver a buscar") }
                     OutlinedButton(onClick = { Store.closeLocal() }) { Text("Quitar") }

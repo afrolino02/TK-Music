@@ -10,7 +10,7 @@ fallos corregidos. Lo que dice _(prueba)_ todavía no llega por la actualizació
 TK-Music está hecho sobre [Sonora](https://github.com/sonorahq/sonora), de Pavel Olizko. Los
 cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
-## [Sin publicar] — v1.0.13 _(prueba)_
+## [Sin publicar] — v1.0.14 _(prueba)_
 
 ### Nuevo
 
@@ -28,6 +28,8 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ### Arreglos
 
+- Música descargada (Android): la app no veía las canciones de una carpeta si la había mirado antes de tener el permiso de música. Ahora vuelve a leer cada carpeta en cada búsqueda.
+- Música descargada (Android): en Ajustes se ve cuántas canciones encontró la app y cuántos audios ve Android, para saber si falta algo.
 - Música descargada (Android): siempre se revisan las carpetas Descargas y Música, también en la tarjeta SD, y entra el audio que Android no marca como música. Antes faltaban canciones o no salía ninguna.
 - Las playlists que ya tienes salían vacías y no se podían crear, porque la app abría en la pestaña Descargadas.
 - Lo guardado para sin conexión ahora suena también en modo avión, sin entrar a la cuenta.

@@ -398,6 +398,8 @@ impl Engine {
                 message: "No encontré ninguna de esas carpetas en el teléfono.".to_owned(),
             });
         }
+        // lo que una carpeta deja ver depende de los permisos que tenía la app la vez anterior
+        music::local::set_trust_folders(false);
         let sink: music::PromptSink = Arc::new(|_| {});
         let (_sender, receiver) = unbounded_channel();
         let session = runtime()
