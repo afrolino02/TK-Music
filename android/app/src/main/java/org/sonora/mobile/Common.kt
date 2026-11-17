@@ -48,9 +48,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -87,6 +84,15 @@ import uniffi.sonora_mobile.TrackItem
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.foundation.layout.height
 
 /** La navegación de la pestaña actual, para abrir álbumes, playlists y artistas. */
 val LocalNav = staticCompositionLocalOf<NavHostController> { error("sin navegación") }
@@ -207,15 +213,35 @@ fun <T> Loader(key: Any, load: (Engine) -> T, content: @Composable (T) -> Unit) 
 fun ProviderPicker() {
     val signedIn = Store.signedIn
     if (signedIn.size < 2) return
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        signedIn.forEachIndexed { index, provider ->
-            SegmentedButton(
-                selected = Store.selected == provider.slug,
+    // pestañas tipo píldora: la elegida se rellena con el color del tema
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(signedIn, key = { it.slug }) { provider ->
+            val chosen = Store.selected == provider.slug
+            FilterChip(
+                selected = chosen,
                 onClick = { Store.selected = provider.slug },
-                shape = SegmentedButtonDefaults.itemShape(index, signedIn.size),
-            ) { Text(provider.name) }
+                label = { Text(provider.name, fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal) },
+                leadingIcon = { Icon(providerIcon(provider.slug), null, Modifier.size(18.dp)) },
+                shape = RoundedCornerShape(50),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier.height(36.dp),
+            )
         }
     }
+}
+
+/** El dibujito de cada servicio en sus pestañas. */
+private fun providerIcon(slug: String) = when (slug) {
+    "local" -> Icons.Filled.Folder
+    "spotify" -> Icons.Filled.GraphicEq
+    else -> Icons.Filled.PlayCircle
 }
 
 @Composable

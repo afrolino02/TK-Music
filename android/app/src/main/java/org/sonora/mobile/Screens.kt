@@ -95,6 +95,8 @@ import uniffi.sonora_mobile.TrackItem
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 // ── Inicio ─────────────────────────────────────────────────────────────────────────────────
 
@@ -639,6 +641,25 @@ fun SearchScreen() {
 
 private val sections = listOf("Playlists", "Canciones", "Álbumes", "Artistas")
 
+/** Mientras la música descargada del teléfono no se ve en la app, un acceso para activarla. */
+@Composable
+private fun PhoneMusicOffer() {
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) Store.openLocal()
+        else Store.problem = "Sin el permiso de música, TK-Music no puede ver las canciones del teléfono."
+    }
+    ListItem(
+        headlineContent = { Text("Música descargada") },
+        supportingContent = {
+            Text(if (Store.localBusy) "Buscando canciones en el teléfono…" else "Toca para ver las canciones guardadas en el teléfono")
+        },
+        leadingContent = { Icon(Icons.Filled.Folder, null) },
+        modifier = Modifier.focusRing().clickable(enabled = !Store.localBusy) {
+            if (Store.canReadMusic()) Store.openLocal() else permission.launch(Store.musicPermission)
+        },
+    )
+}
+
 @Composable
 fun LibraryScreen() {
     var section by rememberSaveable { mutableStateOf(0) }
@@ -664,6 +685,7 @@ fun LibraryScreen() {
                 leadingContent = { Icon(Icons.Filled.DownloadDone, null) },
                 modifier = Modifier.focusRing().clickable { nav.navigate("downloads") },
             )
+            if (Store.signedIn.none { it.slug == "local" }) PhoneMusicOffer()
             if (Store.signedIn.isEmpty()) {
                 NeedsAccount()
                 return@Column

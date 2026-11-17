@@ -96,13 +96,38 @@ struct ProviderPicker: View {
 
     var body: some View {
         if store.signedIn.count > 1 {
-            Picker("Servicio", selection: $store.selected) {
-                ForEach(store.signedIn, id: \.slug) { provider in
-                    Text(provider.name).tag(provider.slug)
+            // pestañas tipo píldora: la elegida se rellena con el color del tema
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(store.signedIn, id: \.slug) { provider in
+                        let chosen = store.selected == provider.slug
+                        Button {
+                            store.selected = provider.slug
+                        } label: {
+                            Label(provider.name, systemImage: icon(provider.slug))
+                                .font(.subheadline.weight(chosen ? .semibold : .regular))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .foregroundStyle(chosen ? Color.white : Color.primary)
+                                .background(
+                                    Capsule().fill(chosen ? AnyShapeStyle(store.accent) : AnyShapeStyle(.quaternary))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(chosen ? .isSelected : [])
+                    }
                 }
             }
-            .pickerStyle(.segmented)
         }
+    }
+}
+
+/// El dibujito de cada servicio en sus pestañas.
+private func icon(_ slug: String) -> String {
+    switch slug {
+    case "local": return "folder.fill"
+    case "spotify": return "waveform"
+    default: return "play.circle.fill"
     }
 }
 

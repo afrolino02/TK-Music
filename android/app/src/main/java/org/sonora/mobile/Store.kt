@@ -531,7 +531,11 @@ object Store : EngineListener {
             app.contentResolver.query(
                 android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 arrayOf(android.provider.MediaStore.Audio.Media.DATA),
-                "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0",
+                // todo el audio menos tonos, alarmas y notificaciones: Android no marca como
+                // «música» mucho de lo que se baja con el navegador u otras apps
+                "${android.provider.MediaStore.Audio.Media.IS_RINGTONE} = 0 AND " +
+                    "${android.provider.MediaStore.Audio.Media.IS_ALARM} = 0 AND " +
+                    "${android.provider.MediaStore.Audio.Media.IS_NOTIFICATION} = 0",
                 null,
                 null,
             )?.use { cursor ->
@@ -541,15 +545,22 @@ object Store : EngineListener {
                 }
             }
         }
-        val all = (found + extraFolders).map { it.trimEnd('/') }.distinct().filterNot(::leftOut).sorted()
+        // Música y Descargas siempre, en la memoria interna y en cada tarjeta SD, aunque Android
+        // todavía no haya registrado lo que hay dentro
+        val usual = buildList {
+            add(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC).path)
+            add(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS).path)
+            app.getExternalFilesDirs(null).filterNotNull().drop(1).forEach { own ->
+                // …/Android/data/<app>/files → la raíz de la tarjeta
+                val root = own.path.substringBefore("/Android/")
+                add("$root/${android.os.Environment.DIRECTORY_MUSIC}")
+                add("$root/${android.os.Environment.DIRECTORY_DOWNLOADS}")
+            }
+        }.filter { java.io.File(it).isDirectory }
+        val all = (found + extraFolders + usual).map { it.trimEnd('/') }.distinct().filterNot(::leftOut).sorted()
         val outer = mutableListOf<String>()
         for (path in all) if (outer.none { path == it || path.startsWith("$it/") }) outer += path
-        return outer.ifEmpty {
-            listOf(
-                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC).path,
-                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS).path,
-            )
-        }
+        return outer
     }
 
     /** Busca (o vuelve a buscar) las canciones del teléfono. */
