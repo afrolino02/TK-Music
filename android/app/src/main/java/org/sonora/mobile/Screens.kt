@@ -668,7 +668,7 @@ fun LibraryScreen() {
     Scaffold(
         topBar = { Bar("Biblioteca") },
         floatingActionButton = {
-            if (Store.signedIn.isNotEmpty() && section == 0) {
+            if (Store.signedIn.isNotEmpty() && section == 0 && Store.selected != "local") {
                 FloatingActionButton(onClick = {
                     name = ""
                     creating = true

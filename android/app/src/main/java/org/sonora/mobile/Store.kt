@@ -51,11 +51,19 @@ object Store : EngineListener {
     var signingIn by mutableStateOf<String?>(null)
     private var chosen by mutableStateOf("youtube")
 
+    /** Si la persona ya tocó una pestaña de servicio desde que abrió la app. */
+    private var picked = false
+
+    /** El servicio con el que abre la app: el último elegido que no sea la música del teléfono. */
+    private val favorite: String
+        get() = if (::app.isInitialized) preferences.getString("selected", null) ?: "youtube" else "youtube"
+
     /** El servicio elegido arriba. Se recuerda para abrir la app directamente en él. */
     var selected: String
         get() = chosen
         set(value) {
             chosen = value
+            picked = true
             if (value != "local" && ::app.isInitialized) preferences.edit().putString("selected", value).apply()
         }
 
@@ -91,7 +99,15 @@ object Store : EngineListener {
 
     fun refresh() {
         providers = engine.providers()
-        if (signedIn.none { it.slug == selected }) signedIn.firstOrNull()?.let { selected = it.slug }
+        // al abrir, la música del teléfono suele estar lista antes que YouTube Music; cuando
+        // llega el servicio de siempre, vuelve a ser el elegido salvo que la persona haya
+        // tocado otra pestaña
+        val preferred = favorite
+        when {
+            !picked && preferred != selected && signedIn.any { it.slug == preferred } -> chosen = preferred
+            signedIn.none { it.slug == selected } ->
+                (signedIn.firstOrNull { it.slug != "local" } ?: signedIn.firstOrNull())?.let { chosen = it.slug }
+        }
         // Android Auto vuelve a leer la lista de servicios
         PlaybackService.instance?.notifyChildrenChanged(AutoBrowser.ROOT)
     }

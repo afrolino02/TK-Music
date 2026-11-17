@@ -102,6 +102,7 @@ struct ProviderPicker: View {
                     ForEach(store.signedIn, id: \.slug) { provider in
                         let chosen = store.selected == provider.slug
                         Button {
+                            store.picked = true
                             store.selected = provider.slug
                         } label: {
                             Label(provider.name, systemImage: icon(provider.slug))
@@ -868,7 +869,7 @@ struct LibraryView: View {
             }
             .navigationTitle("Biblioteca")
             .toolbar {
-                if !store.signedIn.isEmpty {
+                if !store.signedIn.isEmpty && store.selected != "local" {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             newName = ""
@@ -1294,6 +1295,7 @@ private struct OfflineHome: View {
                         Label("Tus canciones sin conexión", systemImage: "arrow.down.circle.fill")
                     }
                     Button {
+                        store.picked = true
                         store.selected = "local"
                     } label: {
                         Label("Música descargada", systemImage: "folder")

@@ -60,6 +60,10 @@ final class Store: ObservableObject {
     @Published var selected: String = UserDefaults.standard.string(forKey: "selected") ?? "youtube" {
         didSet { if selected != "local" { UserDefaults.standard.set(selected, forKey: "selected") } }
     }
+    /// Si la persona ya tocó una pestaña de servicio desde que abrió la app.
+    var picked = false
+    /// El servicio con el que abre la app: el último elegido que no sea la música del teléfono.
+    private var favorite: String { UserDefaults.standard.string(forKey: "selected") ?? "youtube" }
     /// Mientras se recuperan las sesiones guardadas al abrir la app.
     @Published var restoring = false
 
@@ -90,9 +94,22 @@ final class Store: ObservableObject {
 
     func refresh() {
         providers = engine.providers()
-        if !signedIn.contains(where: { $0.slug == selected }), let first = signedIn.first {
-            selected = first.slug
+        // al abrir, la música del teléfono suele estar lista antes que YouTube Music; cuando llega
+        // el servicio de siempre vuelve a ser el elegido, salvo que la persona haya tocado otro
+        let preferred = favorite
+        if !picked, preferred != selected, signedIn.contains(where: { $0.slug == preferred }) {
+            setSelected(preferred)
+        } else if !signedIn.contains(where: { $0.slug == selected }),
+                  let first = signedIn.first(where: { $0.slug != "local" }) ?? signedIn.first {
+            setSelected(first.slug)
         }
+    }
+
+    /// Cambia el servicio elegido sin contarlo como elección de la persona ni recordarlo.
+    private func setSelected(_ slug: String) {
+        let remembered = UserDefaults.standard.string(forKey: "selected")
+        selected = slug
+        if let remembered { UserDefaults.standard.set(remembered, forKey: "selected") }
     }
 
     func account(_ slug: String) -> Account? { engine.account(slug: slug) }
