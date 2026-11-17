@@ -21,6 +21,9 @@ env:
   CARGO_PROFILE_RELEASE_STRIP: symbols
   RUSTC_WRAPPER: sccache
   SCCACHE_GHA_ENABLED: "true"
+  # mete el runtime de C/C++ de Microsoft dentro del .exe, así no pide VCRUNTIME140.dll ni
+  # MSVCP140.dll en los PC que no tienen instalado el Visual C++ Redistributable
+  CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "-C target-feature=+crt-static"
 
 jobs:
   windows:
@@ -43,6 +46,16 @@ jobs:
       - name: Compilar
         shell: bash
         run: cargo build --release --locked --package sonora --target x86_64-pc-windows-msvc
+
+      - name: Revisar que no pida DLL del Visual C++
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object { $_.FullName -like "*Hostx64\x64*" } | Select-Object -First 1
+          $needs = & $dumpbin.FullName /dependents "target/x86_64-pc-windows-msvc/release/sonora.exe" | Select-String "\.dll" | ForEach-Object { $_.Line.Trim() }
+          $needs
+          $runtime = $needs | Where-Object { $_ -match "^(vcruntime|msvcp|concrt|vccorlib)" }
+          if ($runtime) { Write-Error "El .exe todavía pide: $runtime"; exit 1 }
 
       - name: Instalar Inno Setup
         shell: pwsh
