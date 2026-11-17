@@ -374,7 +374,7 @@ fun TrackMenu(track: TrackItem, slug: String, open: Boolean, onDismiss: () -> Un
     }
 }
 
-/** «Descargar para sin conexión» o «Quitar la descarga», dentro del menú de una canción. */
+/** «Guardar para sin conexión» o «Quitar la descarga», dentro del menú de una canción. */
 @Composable
 fun DownloadMenuItem(track: TrackItem, slug: String, onDismiss: () -> Unit) {
     if (!Store.canDownload(slug)) return
@@ -384,9 +384,9 @@ fun DownloadMenuItem(track: TrackItem, slug: String, onDismiss: () -> Unit) {
         text = {
             Text(
                 when {
-                    busy -> "Descargando…"
-                    downloaded -> "Quitar la descarga"
-                    else -> "Descargar para sin conexión"
+                    busy -> "Guardando…"
+                    downloaded -> "Quitar de sin conexión"
+                    else -> "Guardar para sin conexión"
                 },
             )
         },
@@ -420,7 +420,7 @@ fun PlayButtons(tracks: List<TrackItem>, slug: String) {
                 if (busy) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Filled.Download, "Descargar todas para sin conexión")
+                    Icon(Icons.Filled.Download, "Guardar todas para sin conexión")
                 }
             }
         }

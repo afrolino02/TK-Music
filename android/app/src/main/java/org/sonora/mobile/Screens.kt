@@ -659,8 +659,8 @@ fun LibraryScreen() {
         Column(Modifier.fillMaxSize().padding(padding)) {
             val nav = LocalNav.current
             ListItem(
-                headlineContent = { Text("Tus descargas") },
-                supportingContent = { Text("Para escuchar sin internet") },
+                headlineContent = { Text("Tus canciones sin conexión") },
+                supportingContent = { Text("Lo que guardaste para escuchar sin internet") },
                 leadingContent = { Icon(Icons.Filled.DownloadDone, null) },
                 modifier = Modifier.focusRing().clickable { nav.navigate("downloads") },
             )
@@ -1008,16 +1008,16 @@ private fun OfflineHome() {
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Tus descargas") },
-                    supportingContent = { Text("Lo que descargaste en TK-Music, con buscador") },
+                    headlineContent = { Text("Tus canciones sin conexión") },
+                    supportingContent = { Text("Lo que guardaste en TK-Music, con buscador") },
                     leadingContent = { Icon(Icons.Filled.Download, null) },
                     modifier = Modifier.focusRing().clickable { nav.navigate("downloads") },
                 )
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Archivos de música del teléfono") },
-                    supportingContent = { Text("MP3 y demás archivos guardados en el teléfono") },
+                    headlineContent = { Text("Música descargada") },
+                    supportingContent = { Text("Los archivos de música del teléfono") },
                     leadingContent = { Icon(Icons.Filled.Folder, null) },
                     modifier = Modifier.focusRing().clickable { Store.selected = "local"; nav.navigate("library") },
                 )
@@ -1025,7 +1025,7 @@ private fun OfflineHome() {
             if (tracks.isEmpty()) {
                 item {
                     Text(
-                        "Todavía no hay canciones guardadas. Con internet, toca ⋮ en una canción y elige «Descargar para sin conexión», o el botón de descarga de una playlist o álbum. Las que escuches también se guardan solas.",
+                        "Todavía no hay canciones guardadas. Con internet, toca ⋮ en una canción y elige «Guardar para sin conexión», o el botón de descarga de una playlist o álbum. Las que escuches también se guardan solas.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp),
@@ -1034,7 +1034,7 @@ private fun OfflineHome() {
             } else {
                 item {
                     Text(
-                        "Descargadas y escuchadas",
+                        "Guardadas y escuchadas",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),

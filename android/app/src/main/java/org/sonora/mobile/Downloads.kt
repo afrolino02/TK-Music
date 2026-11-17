@@ -49,21 +49,21 @@ import java.text.Normalizer
 fun DownloadsScreen() {
     var query by rememberSaveable { mutableStateOf("") }
     Column(Modifier.fillMaxSize()) {
-        Bar("Descargas", back = true)
+        Bar("Sin conexión", back = true)
         Loader(key = "downloads-${Store.downloadRevision}", load = { it.downloadedTracks("youtube") }) { all ->
             val tracks = filterTracks(all, query)
             LazyColumn(Modifier.fillMaxSize()) {
                 if (all.isNotEmpty()) {
-                    item { FilterField(query, "Buscar en tus descargas") { query = it } }
+                    item { FilterField(query, "Buscar en sin conexión") { query = it } }
                     item { PlayButtons(tracks, "youtube") }
                 }
                 when {
                     all.isEmpty() -> item {
                         Hint(
-                            "Todavía no has descargado nada. Con internet, toca ⋮ en una canción y elige «Descargar para sin conexión», o el botón de descarga de una playlist o álbum.",
+                            "Todavía no hay nada guardado para sin conexión. Con internet, toca ⋮ en una canción y elige «Guardar para sin conexión», o el botón de descarga de una playlist o álbum.",
                         )
                     }
-                    tracks.isEmpty() -> item { Hint("Ninguna descarga coincide con «${query.trim()}».") }
+                    tracks.isEmpty() -> item { Hint("Nada guardado sin conexión coincide con «${query.trim()}».") }
                     else -> {
                         item {
                             Text(
@@ -90,18 +90,33 @@ fun OfflineSearch() {
         Bar("Buscar")
         FilterField(query, "Buscar en tu música guardada") { query = it }
         Text(
-            "Sin conexión: se busca entre tus descargas y lo que ya escuchaste.",
+            "Sin internet: se busca en tu música descargada y en lo guardado para sin conexión.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         )
-        Loader(key = "offline-search-${Store.downloadRevision}", load = { it.offlineTracks() }) { all ->
-            val tracks = filterTracks(all, query)
+        val phone = Store.signedIn.any { it.slug == "local" }
+        Loader(key = "offline-search-${Store.downloadRevision}-${Store.libraryRevision}-$phone", load = { engine ->
+            Pair(
+                if (phone) runCatching { engine.libraryTracks("local") }.getOrDefault(emptyList()) else emptyList(),
+                engine.offlineTracks(),
+            )
+        }) { (files, saved) ->
+            val local = filterTracks(files, query)
+            val kept = filterTracks(saved, query)
             LazyColumn(Modifier.fillMaxSize()) {
-                when {
-                    all.isEmpty() -> item { Hint("Todavía no hay canciones guardadas en el teléfono.") }
-                    tracks.isEmpty() -> item { Hint("Nada guardado coincide con «${query.trim()}».") }
-                    else -> trackItems(tracks, "youtube")
+                if (files.isEmpty() && saved.isEmpty()) {
+                    item { Hint("Todavía no hay canciones en el teléfono.") }
+                } else if (local.isEmpty() && kept.isEmpty()) {
+                    item { Hint("Nada en el teléfono coincide con «${query.trim()}».") }
+                }
+                if (local.isNotEmpty()) {
+                    item { SectionTitle("Música descargada") }
+                    trackItems(local, "local")
+                }
+                if (kept.isNotEmpty()) {
+                    item { SectionTitle("Sin conexión") }
+                    trackItems(kept, "youtube")
                 }
                 item { Spacer(Modifier.size(96.dp)) }
             }

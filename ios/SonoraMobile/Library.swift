@@ -8,6 +8,7 @@ enum Route: Hashable {
     case playlist(slug: String, id: String)
     case artist(slug: String, id: String)
     case genre(slug: String, id: String, title: String)
+    case downloads
 }
 
 private struct OpenRouteKey: EnvironmentKey {
@@ -36,6 +37,7 @@ struct RoutedStack<Content: View>: View {
                     case .playlist(let slug, let id): PlaylistView(slug: slug, id: id)
                     case .artist(let slug, let id): ArtistView(slug: slug, id: id)
                     case .genre(let slug, let id, let title): GenreView(slug: slug, id: id, title: title)
+                    case .downloads: DownloadsView()
                     }
                 }
         }
@@ -348,27 +350,95 @@ struct HomeView: View {
                 .ignoresSafeArea(edges: .top)
                 if store.offline {
                     OfflineHome()
-                } else if store.signedIn.isEmpty {
+                } else if store.signedIn.isEmpty && !store.restoring {
                     VStack(alignment: .leading) {
                         Greeting()
                         NeedsAccount()
                     }
                 } else {
-                    let slug = store.selected
-                    Loader(key: "home-\(slug)-\(store.libraryRevision)", load: { engine in
-                        HomeData(
-                            shelves: try engine.home(slug: slug),
-                            liked: (try? engine.libraryTracks(slug: slug)) ?? [],
-                            playlists: (try? engine.libraryPlaylists(slug: slug)) ?? []
-                        )
-                    }) { data in
-                        HomeFeed(data: data, slug: slug)
-                    }
+                    CachedHome(slug: store.selected)
+                        .id(store.selected)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
             .withPlayerBar()
         }
+    }
+}
+
+/// Inicio: lo último que se vio sale al instante y lo nuevo llega por detrás y lo reemplaza.
+private struct CachedHome: View {
+    @EnvironmentObject private var store: Store
+    let slug: String
+    @State private var data: HomeData?
+    @State private var failure: String?
+    @State private var attempt = 0
+
+    private var ready: Bool { store.signedIn.contains { $0.slug == slug } }
+
+    var body: some View {
+        Group {
+            if let data {
+                HomeFeed(data: data, slug: slug)
+            } else if let failure {
+                VStack(spacing: 12) {
+                    Text(failure).multilineTextAlignment(.center).foregroundStyle(.secondary)
+                    Button("Reintentar") { attempt += 1 }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        Greeting()
+                        HomeSkeleton()
+                    }
+                }
+                .scrollDisabled(true)
+            }
+        }
+        .onAppear {
+            if data == nil, let saved = store.engine.cachedHome(slug: slug) {
+                data = HomeData(shelves: saved.shelves, liked: saved.liked, playlists: saved.playlists)
+            }
+        }
+        .task(id: "\(ready)-\(store.libraryRevision)-\(attempt)") {
+            guard ready else { return }
+            failure = nil
+            switch await store.run({ try $0.homeSnapshot(slug: slug) }) {
+            case .success(let fresh):
+                data = HomeData(shelves: fresh.shelves, liked: fresh.liked, playlists: fresh.playlists)
+            case .failure(let error):
+                failure = describe(error)
+            }
+        }
+    }
+}
+
+/// Siluetas de tarjetas que laten mientras llega el inicio, en vez de una rueda girando.
+private struct HomeSkeleton: View {
+    @State private var dim = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            RoundedRectangle(cornerRadius: 20).frame(height: 210).padding(.horizontal)
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 6).frame(width: 160, height: 18).padding(.horizontal)
+                HStack(spacing: 8) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: 8) {
+                            RoundedRectangle(cornerRadius: 10).frame(width: homeCard, height: homeCard)
+                            RoundedRectangle(cornerRadius: 4).frame(width: 84, height: 12)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .foregroundStyle(.primary.opacity(0.12))
+        .opacity(dim ? 0.45 : 1)
+        .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: dim)
+        .onAppear { dim = true }
     }
 }
 
@@ -754,9 +824,13 @@ struct LibraryView: View {
         RoutedStack {
             Group {
                 if store.signedIn.isEmpty {
-                    NeedsAccount()
+                    VStack(spacing: 8) {
+                        DownloadsLink().padding(.horizontal)
+                        NeedsAccount()
+                    }
                 } else {
                     VStack(spacing: 8) {
+                        DownloadsLink().padding(.horizontal)
                         ProviderPicker().padding(.horizontal)
                         Picker("Sección", selection: $section) {
                             ForEach(LibrarySection.allCases) { Text($0.rawValue).tag($0) }
@@ -836,7 +910,7 @@ struct LibrarySectionView: View {
     }
 }
 
-/// «Descargar para sin conexión» o «Quitar la descarga», dentro del menú de una canción.
+/// «Guardar para sin conexión» o «Quitar la descarga», dentro del menú de una canción.
 struct DownloadButton: View {
     @EnvironmentObject private var store: Store
     let track: TrackItem
@@ -854,11 +928,11 @@ struct DownloadButton: View {
                 }
             } label: {
                 if busy {
-                    Label("Descargando…", systemImage: "arrow.down.circle")
+                    Label("Guardando…", systemImage: "arrow.down.circle")
                 } else if downloaded {
-                    Label("Quitar la descarga", systemImage: "arrow.down.circle.fill")
+                    Label("Quitar de sin conexión", systemImage: "arrow.down.circle.fill")
                 } else {
-                    Label("Descargar para sin conexión", systemImage: "arrow.down.circle")
+                    Label("Guardar para sin conexión", systemImage: "arrow.down.circle")
                 }
             }
             .disabled(busy)
@@ -896,7 +970,7 @@ struct PlayButtons: View {
                     }
                 }
                 .disabled(busy)
-                .accessibilityLabel("Descargar todas para sin conexión")
+                .accessibilityLabel("Guardar todas para sin conexión")
             }
         }
         .buttonStyle(.bordered)
@@ -1191,15 +1265,18 @@ private struct OfflineHome: View {
                     if store.online {
                         Button("Volver a conectarse") { store.offlineMode = false }
                     }
+                    NavigationLink(value: Route.downloads) {
+                        Label("Tus canciones sin conexión", systemImage: "arrow.down.circle.fill")
+                    }
                     Button {
                         store.selected = "local"
                     } label: {
-                        Label("Música descargada", systemImage: "arrow.down.circle")
+                        Label("Música descargada", systemImage: "folder")
                     }
                 }
-                Section("Descargadas y escuchadas") {
+                Section("Guardadas y escuchadas") {
                     if tracks.isEmpty {
-                        Text("Todavía no hay canciones guardadas. Con internet, mantén pulsada una canción y elige «Descargar para sin conexión», o usa el botón de descarga de una playlist o álbum. Las que escuches también se guardan solas.")
+                        Text("Todavía no hay canciones guardadas. Con internet, mantén pulsada una canción y elige «Guardar para sin conexión», o usa el botón de descarga de una playlist o álbum. Las que escuches también se guardan solas.")
                             .foregroundStyle(.secondary)
                     } else {
                         TrackList(tracks: tracks, slug: "youtube")
@@ -1209,5 +1286,111 @@ private struct OfflineHome: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
         }
+    }
+}
+
+// MARK: - Descargas
+
+/// El acceso a las descargas desde la Biblioteca.
+struct DownloadsLink: View {
+    var body: some View {
+        NavigationLink(value: Route.downloads) {
+            HStack {
+                Label("Tus canciones sin conexión", systemImage: "arrow.down.circle.fill")
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Las canciones descargadas a propósito para escucharlas sin internet, con un buscador.
+struct DownloadsView: View {
+    @EnvironmentObject private var store: Store
+    @State private var query = ""
+
+    var body: some View {
+        Loader(key: "downloads-\(store.downloadRevision)", load: { $0.downloadedTracks(slug: "youtube") }) { all in
+            let tracks = filterTracks(all, query)
+            List {
+                if all.isEmpty {
+                    Text("Todavía no hay nada guardado para sin conexión. Con internet, mantén pulsada una canción y elige «Guardar para sin conexión», o usa el botón de descarga de una playlist o álbum.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    PlayButtons(tracks: tracks, slug: "youtube")
+                    Section(tracks.count == 1 ? "1 canción" : "\(tracks.count) canciones") {
+                        if tracks.isEmpty {
+                            Text("Nada guardado sin conexión coincide con «\(query)».").foregroundStyle(.secondary)
+                        } else {
+                            TrackList(tracks: tracks, slug: "youtube")
+                        }
+                    }
+                }
+            }
+            .searchable(text: $query, prompt: "Buscar en sin conexión")
+        }
+        .navigationTitle("Sin conexión")
+    }
+}
+
+/// La búsqueda sin conexión: entre lo descargado y lo ya escuchado que quedó guardado.
+struct OfflineSearchView: View {
+    @EnvironmentObject private var store: Store
+    @State private var query = ""
+
+    var body: some View {
+        RoutedStack {
+            let phone = store.signedIn.contains { $0.slug == "local" }
+            Loader(key: "offline-search-\(store.downloadRevision)-\(store.libraryRevision)-\(phone)", load: { engine -> OfflineFound in
+                OfflineFound(
+                    files: phone ? ((try? engine.libraryTracks(slug: "local")) ?? []) : [],
+                    saved: engine.offlineTracks()
+                )
+            }) { found in
+                let local = filterTracks(found.files, query)
+                let kept = filterTracks(found.saved, query)
+                List {
+                    Text("Sin internet: se busca en tu música descargada y en lo guardado para sin conexión.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if found.files.isEmpty && found.saved.isEmpty {
+                        Text("Todavía no hay canciones en el teléfono.").foregroundStyle(.secondary)
+                    } else if local.isEmpty && kept.isEmpty {
+                        Text("Nada en el teléfono coincide con «\(query)».").foregroundStyle(.secondary)
+                    }
+                    if !local.isEmpty {
+                        Section("Música descargada") { TrackList(tracks: local, slug: "local") }
+                    }
+                    if !kept.isEmpty {
+                        Section("Sin conexión") { TrackList(tracks: kept, slug: "youtube") }
+                    }
+                }
+                .searchable(text: $query, prompt: "Buscar en tu música guardada")
+            }
+            .navigationTitle("Buscar")
+            .withPlayerBar()
+        }
+    }
+}
+
+/// Lo que hay en el teléfono para buscar sin internet.
+struct OfflineFound {
+    let files: [TrackItem]
+    let saved: [TrackItem]
+}
+
+/// Las canciones cuyo título, artista o álbum contienen todas las palabras, sin mirar tildes.
+func filterTracks(_ tracks: [TrackItem], _ query: String) -> [TrackItem] {
+    let words = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        .split(separator: " ")
+        .map(String.init)
+    guard !words.isEmpty else { return tracks }
+    return tracks.filter { track in
+        let text = "\(track.title) \(track.artists) \(track.album)"
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return words.allSatisfy { text.contains($0) }
     }
 }

@@ -225,7 +225,7 @@ object Store : EngineListener {
         val pending = tracks.filter { it.id !in downloading }
         if (pending.isEmpty()) return@launch
         pending.forEach { downloading.add(it.id) }
-        if (pending.size > 1) problem = "Descargando ${pending.size} canciones…"
+        if (pending.size > 1) problem = "Guardando ${pending.size} canciones para sin conexión…"
         var done = 0
         var failure: Throwable? = null
         for (track in pending) {
@@ -236,17 +236,17 @@ object Store : EngineListener {
             downloadRevision++
         }
         problem = when {
-            failure != null && done == 0 -> "No se pudo descargar: ${describe(failure!!)}"
-            failure != null -> "Se descargaron $done de ${pending.size} canciones."
-            pending.size == 1 -> "Descargada: ya suena sin conexión."
-            else -> "Listo: $done canciones descargadas."
+            failure != null && done == 0 -> "No se pudo guardar para sin conexión: ${describe(failure!!)}"
+            failure != null -> "Se guardaron $done de ${pending.size} canciones."
+            pending.size == 1 -> "Guardada: ya suena sin conexión."
+            else -> "Listo: $done canciones guardadas para sin conexión."
         }
     }
 
     fun removeDownload(track: TrackItem, slug: String) = launch {
         run { it.removeDownload(slug, track.id) }
         downloadRevision++
-        problem = "Descarga borrada del teléfono."
+        problem = "Quitada de sin conexión."
     }
 
     // ── Playlists ──────────────────────────────────────────────────────────────────────────

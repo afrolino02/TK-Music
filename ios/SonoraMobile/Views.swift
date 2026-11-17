@@ -14,6 +14,14 @@ struct SearchView: View {
     @State private var suggestions: [String] = []
 
     var body: some View {
+        if store.offline {
+            OfflineSearchView()
+        } else {
+            onlineSearch
+        }
+    }
+
+    private var onlineSearch: some View {
         RoutedStack {
             List {
                 if store.signedIn.isEmpty {

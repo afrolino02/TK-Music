@@ -57,7 +57,11 @@ final class Store: ObservableObject {
     /// Sube cada vez que cambian las playlists, para recargar la biblioteca.
     @Published var libraryRevision = 0
     /// El proveedor en el que se busca.
-    @Published var selected: String = "youtube"
+    @Published var selected: String = UserDefaults.standard.string(forKey: "selected") ?? "youtube" {
+        didSet { if selected != "local" { UserDefaults.standard.set(selected, forKey: "selected") } }
+    }
+    /// Mientras se recuperan las sesiones guardadas al abrir la app.
+    @Published var restoring = false
 
     init() {
         let bridge = Bridge()
@@ -214,17 +218,23 @@ final class Store: ObservableObject {
     /// Recupera las sesiones guardadas al abrir la app.
     private func restoreStored() {
         let engine = self.engine
-        for provider in providers where provider.stored {
+        let stored = providers.filter { $0.stored && !$0.signedIn }
+        var pending = stored.count
+        restoring = pending > 0
+        for provider in stored {
             let slug = provider.slug
             let name = provider.name
             Task.detached { [weak self] in
                 let result = Result(catching: { try engine.restore(slug: slug) })
                 await MainActor.run {
                     guard let self else { return }
-                    if case .failure(let error) = result {
+                    // sin internet no se avisa: lo descargado suena igual
+                    if case .failure(let error) = result, self.online {
                         self.problem = "\(name): \(describe(error))"
                     }
                     self.refresh()
+                    pending -= 1
+                    if pending == 0 { self.restoring = false }
                 }
             }
         }
@@ -370,7 +380,7 @@ final class Store: ObservableObject {
         let pending = tracks.filter { !downloading.contains($0.id) }
         guard !pending.isEmpty else { return }
         pending.forEach { downloading.insert($0.id) }
-        if pending.count > 1 { problem = "Descargando \(pending.count) canciones…" }
+        if pending.count > 1 { problem = "Guardando \(pending.count) canciones para sin conexión…" }
         Task {
             var done = 0
             var failure: Error?
@@ -383,11 +393,11 @@ final class Store: ObservableObject {
                 downloadRevision += 1
             }
             if let failure, done == 0 {
-                problem = "No se pudo descargar: \(describe(failure))"
+                problem = "No se pudo guardar para sin conexión: \(describe(failure))"
             } else if failure != nil {
-                problem = "Se descargaron \(done) de \(pending.count) canciones."
+                problem = "Se guardaron \(done) de \(pending.count) canciones."
             } else {
-                problem = pending.count == 1 ? "Descargada: ya suena sin conexión." : "Listo: \(done) canciones descargadas."
+                problem = pending.count == 1 ? "Guardada: ya suena sin conexión." : "Listo: \(done) canciones guardadas para sin conexión."
             }
         }
     }
@@ -396,7 +406,7 @@ final class Store: ObservableObject {
         Task {
             _ = await run { $0.removeDownload(slug: slug, id: track.id) }
             downloadRevision += 1
-            problem = "Descarga borrada del teléfono."
+            problem = "Quitada de sin conexión."
         }
     }
 
