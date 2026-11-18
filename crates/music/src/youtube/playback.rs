@@ -90,6 +90,14 @@ impl PlaybackFactory for Factory {
             config,
         )
     }
+
+    fn decoder(&self) -> Option<Arc<dyn engine::Decode>> {
+        Some(Arc::new(engine::Alone(YouTube {
+            api: self.api.clone(),
+            ceiling: ceiling(Quality::High),
+            shelf: None,
+        })))
+    }
 }
 
 struct YouTube {

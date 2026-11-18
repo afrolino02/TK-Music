@@ -75,7 +75,7 @@ fn song_side(item: &Value) -> Value {
     let primary = wrapper.at(&["primaryRenderer", "playlistPanelVideoRenderer"]);
     let counterparts = wrapper
         .items(&["counterpart"])
-        .into_iter()
+        .iter()
         .filter_map(|side| side.at(&["counterpartRenderer", "playlistPanelVideoRenderer"]));
     primary
         .into_iter()

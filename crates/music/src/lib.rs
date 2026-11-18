@@ -775,6 +775,12 @@ pub trait PlaybackFactory: Send + Sync {
     fn qualities(&self) -> Option<&'static [Offer]> {
         None
     }
+
+    /// Decodes tracks one at a time outside the engine, for a program that sends the audio
+    /// somewhere else, like a Discord bot. `None` when the provider cannot.
+    fn decoder(&self) -> Option<Arc<dyn engine::Decode>> {
+        None
+    }
 }
 
 /// What a provider's library is made of. It decides which `MusicApi` methods fill the library

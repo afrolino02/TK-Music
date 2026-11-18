@@ -72,6 +72,46 @@ impl Loudness {
     }
 }
 
+/// A track decoded on its own, outside the engine's threads, queue and output, for a program
+/// that mixes its own audio, such as a Discord bot.
+pub struct Decoded {
+    /// The samples, from the start of the track. Reading it can block while the track arrives,
+    /// so read it off the async runtime.
+    pub source: Box<dyn rodio::Source + Send>,
+    /// How long the track is, when the fetch learned it.
+    pub length: Option<Duration>,
+}
+
+/// Decodes whole tracks for a program that plays them its own way. A provider offers one
+/// through [`crate::PlaybackFactory::decoder`].
+#[async_trait]
+pub trait Decode: Send + Sync {
+    /// Fetches `id` and opens a decoder at its start.
+    async fn decode(&self, id: &str) -> Result<Decoded>;
+}
+
+/// Wraps any fetch as a [`Decode`], so a provider offers standalone decoding with one line.
+pub struct Alone<F>(pub F);
+
+#[async_trait]
+impl<F: Fetch> Decode for Alone<F>
+where
+    F::Loaded: Sync,
+{
+    async fn decode(&self, id: &str) -> Result<Decoded> {
+        let loaded = self.0.load(id).await?;
+        let length = self.0.length(&loaded);
+        let source = self
+            .0
+            .open(id, &loaded, Duration::ZERO)
+            .with_context(|| format!("cannot decode {id}"))?;
+        Ok(Decoded {
+            source: Box::new(source),
+            length,
+        })
+    }
+}
+
 /// What the engine needs from a provider, and all it needs.
 ///
 /// `load` runs on the engine's tokio runtime; `open` runs on the audio thread, where it must

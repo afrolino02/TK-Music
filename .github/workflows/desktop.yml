@@ -45,17 +45,19 @@ jobs:
 
       - name: Compilar
         shell: bash
-        run: cargo build --release --locked --package sonora --target x86_64-pc-windows-msvc
+        run: cargo build --release --locked --package sonora --package tk_music_bot --target x86_64-pc-windows-msvc
 
       - name: Revisar que no pida DLL del Visual C++
         shell: pwsh
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object { $_.FullName -like "*Hostx64\x64*" } | Select-Object -First 1
-          $needs = & $dumpbin.FullName /dependents "target/x86_64-pc-windows-msvc/release/sonora.exe" | Select-String "\.dll" | ForEach-Object { $_.Line.Trim() }
-          $needs
-          $runtime = $needs | Where-Object { $_ -match "^(vcruntime|msvcp|concrt|vccorlib)" }
-          if ($runtime) { Write-Error "El .exe todavía pide: $runtime"; exit 1 }
+          foreach ($exe in @("sonora.exe", "tk-music-bot.exe")) {
+            $needs = & $dumpbin.FullName /dependents "target/x86_64-pc-windows-msvc/release/$exe" | Select-String "\.dll" | ForEach-Object { $_.Line.Trim() }
+            "$exe pide:"; $needs
+            $runtime = $needs | Where-Object { $_ -match "^(vcruntime|msvcp|concrt|vccorlib)" }
+            if ($runtime) { Write-Error "$exe todavía pide: $runtime"; exit 1 }
+          }
 
       - name: Instalar Inno Setup
         shell: pwsh
@@ -75,6 +77,7 @@ jobs:
           $env:SONORA_ARCH = "x64compatible"
           $env:SONORA_SETUP = "TK-Music-Setup"
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "scripts/windows/sonora.iss"
+          Copy-Item "target/x86_64-pc-windows-msvc/release/tk-music-bot.exe" "dist/TK-Music-Bot.exe"
           Set-Location dist
           $hash = (Get-FileHash TK-Music-Setup.exe -Algorithm SHA256).Hash.ToLower()
           "$hash  TK-Music-Setup.exe" | Set-Content -Encoding ascii -NoNewline SHA256SUMS
@@ -92,4 +95,5 @@ jobs:
         with:
           files: |
             dist/TK-Music-Setup.exe
+            dist/TK-Music-Bot.exe
             dist/SHA256SUMS
