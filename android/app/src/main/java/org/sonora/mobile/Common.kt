@@ -371,6 +371,7 @@ fun TrackMenu(track: TrackItem, slug: String, open: Boolean, onDismiss: () -> Un
             onClick = { pick { Store.save(SavedKind.TRACK, track.id, slug) } },
         )
         DownloadMenuItem(track, slug, onDismiss)
+        DiscordMenuItem(track, slug, onDismiss)
         DropdownMenuItem(
             text = { Text("Agregar a una playlist…") },
             leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },

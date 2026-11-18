@@ -163,6 +163,10 @@ final class Store: ObservableObject {
     @Published var showRomanized = UserDefaults.standard.object(forKey: "lyrics.romanized") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showRomanized, forKey: "lyrics.romanized") }
     }
+    /// El webhook del canal #tk-music del bot de Discord, o "" si no se configuró.
+    @Published var discordWebhook = UserDefaults.standard.string(forKey: "discord.webhook") ?? "" {
+        didSet { UserDefaults.standard.set(discordWebhook, forKey: "discord.webhook") }
+    }
     @Published var userName = UserDefaults.standard.string(forKey: "look.name") ?? "" {
         didSet { UserDefaults.standard.set(userName, forKey: "look.name") }
     }

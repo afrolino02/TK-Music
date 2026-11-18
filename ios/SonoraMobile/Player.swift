@@ -159,6 +159,7 @@ struct PlayerView: View {
                     Label("Agregar a una playlist…", systemImage: "text.badge.plus")
                 }
                 DownloadButton(track: track, slug: slug)
+                DiscordButton(track: track, slug: slug)
                 if !state.remote, let album = track.albumId {
                     Button {
                         dismiss()

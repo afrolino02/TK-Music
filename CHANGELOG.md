@@ -10,6 +10,18 @@ fallos corregidos. Lo que dice _(prueba)_ todavía no llega por la actualizació
 TK-Music está hecho sobre [Sonora](https://github.com/sonorahq/sonora), de Pavel Olizko. Los
 cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
+## [Sin publicar]
+
+### Nuevo
+
+- **TK-Music para Discord** (`TK-Music-Bot.exe`): un bot que corre en tu PC y pone música de YouTube Music en tu canal de voz, con `/play`, cola, radio, letra y un panel de «Sonando ahora» con portada, barra de progreso y botones.
+- Canal **#tk-music**: cualquier canción o enlace que se escriba ahí se agrega a la cola del bot.
+- «Enviar al bot de Discord» en el menú de cada canción de la app (Android e iPhone), configurando el webhook del canal en Ajustes.
+
+### Arreglos
+
+- PC: TK-Music ya no pide `VCRUNTIME140.dll` ni `MSVCP140.dll` en equipos sin el Visual C++ Redistributable.
+
 ## [1.0.14] — 2026-11-17
 
 ### Nuevo
@@ -126,6 +138,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 - Primera versión de TK-Music en su propio repositorio: Android, Android TV, Android Auto, iPhone y iPad.
 
+[Sin publicar]: https://github.com/rprofe358/TK-Music/compare/v1.0.14...main
 [1.0.14]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.14
 [1.0.11]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.11
 [1.0.10]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.10

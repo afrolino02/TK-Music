@@ -90,6 +90,7 @@ object Store : EngineListener {
         refresh()
         loadRecent()
         loadLook()
+        Discord.load(app)
         watchNetwork()
         restoreStored()
         // la música del teléfono aparece sola si ya hay permiso (salvo que se haya quitado)

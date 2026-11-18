@@ -182,6 +182,7 @@ struct TrackMenu: ViewModifier {
                 Label("Guardar en tu biblioteca", systemImage: "heart")
             }
             DownloadButton(track: track, slug: slug)
+            DiscordButton(track: track, slug: slug)
             Button {
                 store.addingToPlaylist = PendingAdd(slug: slug, tracks: [track])
             } label: {

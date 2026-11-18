@@ -353,6 +353,7 @@ struct AccountsView: View {
                 } footer: {
                     Text("Muestra solo lo que suena sin internet, para ahorrar datos. Se activa solo cuando no hay conexión.")
                 }
+                DiscordSection()
                 Section("Ajustes") {
                     NavigationLink {
                         AudioSettingsView()

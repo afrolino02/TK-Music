@@ -110,6 +110,7 @@ fun SettingsScreen() {
                     modifier = Modifier.focusRing().clickable { Store.changeOfflineMode(!Store.offlineMode) },
                 )
             }
+            item { DiscordSection() }
             item { SectionTitle("Diagnóstico") }
             item { ListItem(headlineContent = { Text("Motor (Sonora)") }, trailingContent = { Text(engineVersion()) }) }
             items(outputs) { output ->
