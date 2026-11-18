@@ -35,7 +35,12 @@ motor de TK-Music.
 Si en este PC iniciaste sesión en YouTube Music dentro de **TK-Music para PC**, el bot usa esa
 misma cuenta (tus playlists y, con Premium, mejor calidad). Si no, entra como invitado.
 
-Para cambiar el token: abre el bot con `TK-Music-Bot.exe --olvidar-token` y vuelve a abrirlo.
+Para cambiar el token: si lo reseteas en el portal, el bot avisa al abrir que Discord no lo
+acepta y te pide el nuevo la siguiente vez. También puedes abrirlo con
+`TK-Music-Bot.exe --olvidar-token`. **Nunca compartas el token ni una captura donde se vea.**
+
+Si Windows pregunta si TK-Music-Bot se puede conectar a la red, acepta (redes privadas y
+públicas): el audio de voz va por ahí.
 
 ## 3. Usarlo
 

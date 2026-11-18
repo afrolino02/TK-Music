@@ -83,10 +83,14 @@ fn ask_token() -> Result<String> {
     println!();
     println!("Primera vez: falta el token del bot de Discord.");
     println!("Sácalo en https://discord.com/developers/applications → tu app → Bot → Reset Token.");
-    print!("Pega el token aquí y presiona Enter: ");
+    println!("(Por seguridad no se ve mientras lo pegas: pégalo con clic derecho y presiona Enter.)");
+    print!("Token: ");
     io::stdout().flush()?;
-    let mut line = String::new();
-    io::stdin().lock().read_line(&mut line)?;
+    let line = rpassword::read_password().or_else(|_| {
+        // sin una consola de verdad no se puede esconder: se lee normal
+        let mut line = String::new();
+        io::stdin().lock().read_line(&mut line).map(|_| line)
+    })?;
     let token = line.trim().trim_matches('"').to_owned();
     if token.is_empty() {
         bail!("no se pegó ningún token");

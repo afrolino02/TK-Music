@@ -26,6 +26,8 @@ use crate::panel::button;
 async fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn,tk_music_bot=info,songbird=info"))
         .init();
+    // serenity y songbird traen dos motores de cifrado; sin elegir uno, la conexión de voz se cae
+    let _ = rustls::crypto::ring::default_provider().install_default();
     println!("TK-Music para Discord · Powered by Sonora");
     if std::env::args().any(|arg| arg == "--olvidar-token") {
         match Config::forget_token() {
@@ -36,7 +38,14 @@ async fn main() {
     }
     if let Err(error) = run().await {
         eprintln!();
-        eprintln!("❌ {error}");
+        if rejected(&error) {
+            // un token cambiado o mal pegado: se olvida para pedir otro al abrir de nuevo
+            let _ = Config::forget_token();
+            eprintln!("❌ Discord no aceptó el token (¿lo cambiaste o se pegó mal?).");
+            eprintln!("   Cierra esta ventana y abre el bot otra vez para pegar el token nuevo.");
+        } else {
+            eprintln!("❌ {error}");
+        }
         eprintln!();
         eprintln!("Presiona Enter para cerrar.");
         let _ = std::io::stdin().read_line(&mut String::new());
@@ -101,6 +110,14 @@ async fn start(config: &Config, music: music::Music, intents: GatewayIntents) ->
         .await?;
     client.start().await?;
     Ok(())
+}
+
+/// Si Discord rechazó el token.
+fn rejected(error: &Error) -> bool {
+    let text = format!("{error:?}");
+    ["InvalidAuthentication", "InvalidToken", "4004", "401 Unauthorized"]
+        .iter()
+        .any(|sign| text.contains(sign))
 }
 
 /// Si el error es que Discord no deja usar el permiso de leer mensajes.
