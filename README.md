@@ -20,6 +20,7 @@
 |---|---|---|
 | Android, Android TV y Android Auto | [**TK-Music.apk**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music.apk) | Abre el APK en el dispositivo y permite instalar apps de origen desconocido. |
 | Windows (PC) | [**TK-Music-Setup.exe**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music-Setup.exe) | Ejecuta el instalador. Si Windows avisa, toca «Más información» → «Ejecutar de todas formas». Se actualiza sola. |
+| Bot de Discord (PC) | [**TK-Music-Bot.exe**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music-Bot.exe) | Pone la música en tu canal de voz. Guía paso a paso: [docs/DISCORD.md](docs/DISCORD.md). |
 | iPhone y iPad | [**TK-Music.ipa**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music.ipa) | Instálalo con Sideloadly o AltStore (con una cuenta gratuita se renueva cada 7 días). |
 
 Todas las versiones están en [Releases](https://github.com/rprofe358/TK-Music/releases).
