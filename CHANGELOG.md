@@ -14,6 +14,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ### Arreglos
 
+- Bot de Discord: la ventana muestra cada paso (abrir la canción, empezar a sonar, errores) para saber dónde falla si no se oye nada.
 - Bot de Discord: contesta apenas encuentra la canción y empieza a bajar el audio mientras entra al canal de voz, así la música arranca antes. Al abrirse deja lista la conexión con YouTube para que la primera canción no tarde de más.
 
 ## [1.0.15] — 2026-11-17

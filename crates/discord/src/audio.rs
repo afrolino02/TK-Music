@@ -64,7 +64,10 @@ impl Compose for Lazy {
             },
             None => self.decoder.decode(&self.song.id).await,
         }
-        .map_err(|error| AudioStreamError::Fail(error.into()))?;
+        .map_err(|error| {
+            log::warn!("audio: no se pudo abrir «{}»: {error:#}", self.song.title);
+            AudioStreamError::Fail(error.into())
+        })?;
         log::info!("audio: «{}» listo en {:.1} s", self.song.title, started.elapsed().as_secs_f32());
         let rate = decoded.source.sample_rate().get();
         let channels = u32::from(decoded.source.channels().get());
@@ -105,9 +108,14 @@ impl Compose for Lazy {
 /// Decodifica la canción entera, trozo a trozo, hasta que se acaba o nadie la escucha.
 fn pump(source: Box<dyn rodio::Source + Send>, sender: SyncSender<Vec<f32>>, title: &str) {
     let mut chunk = Vec::with_capacity(CHUNK);
+    let mut total: usize = 0;
     for sample in source {
         chunk.push(sample);
         if chunk.len() == CHUNK {
+            if total == 0 {
+                log::info!("audio: «{title}» empezó a sonar");
+            }
+            total += CHUNK;
             let full = std::mem::replace(&mut chunk, Vec::with_capacity(CHUNK));
             if sender.send(full).is_err() {
                 log::debug!("audio: «{title}» se dejó de escuchar");
@@ -115,8 +123,14 @@ fn pump(source: Box<dyn rodio::Source + Send>, sender: SyncSender<Vec<f32>>, tit
             }
         }
     }
+    total += chunk.len();
     if !chunk.is_empty() {
         let _ = sender.send(chunk);
+    }
+    if total == 0 {
+        log::warn!("audio: «{title}» no dio ninguna muestra (el decodificador no leyó nada)");
+    } else {
+        log::info!("audio: «{title}» terminó de decodificarse ({total} muestras)");
     }
 }
 
