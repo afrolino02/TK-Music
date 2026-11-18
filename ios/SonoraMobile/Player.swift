@@ -24,6 +24,8 @@ struct PlayerView: View {
     @State private var stageShown = true
     /// Cambia con cada toque en la pantalla completa, para volver a contar hasta esconder.
     @State private var stagePoke = 0
+    /// El color más vivo de la portada, para la onda de la pantalla completa.
+    @State private var stageGlow: Color?
     /// Lo que se tocó en el corazón, mientras el servicio lo confirma.
 
     private var fg: Color { light ? Color(white: 0.08) : .white }
@@ -162,18 +164,30 @@ struct PlayerView: View {
     }
 
     /// Pantalla completa, como en el escritorio: la portada en el centro sobre el fondo
-    /// desenfocado, la onda de la música a lo ancho del borde de abajo y los controles, que se
-    /// esconden solos. Un toque los vuelve a mostrar.
+    /// desenfocado, una onda luminosa del color de la portada a lo ancho del borde de abajo y los
+    /// controles, que se esconden solos. Al mostrarlos, la portada les hace sitio: se corre a la
+    /// izquierda con la pantalla de lado, y hacia arriba de pie. Un toque los vuelve a mostrar.
     private func stageView(_ state: PlaybackState, size: CGSize) -> some View {
-        let cover = max(120, min(size.width * 0.36, size.height * 0.5))
+        let landscape = size.width > size.height
+        let cover = max(120, landscape
+            ? min(size.width * 0.34, size.height * 0.5)
+            : min(size.width * 0.72, size.height * 0.4))
+        let aside: CGFloat = stageShown && landscape ? -size.width * 0.21 : 0
+        let lift: CGFloat = stageShown && !landscape ? -size.height * 0.1 : 0
         return ZStack {
-            VStack(spacing: 10) {
+            VStack {
+                Spacer()
+                StageWave(color: stageGlow ?? fg)
+                    .frame(height: size.height * (landscape ? 0.3 : 0.22))
+            }
+            .ignoresSafeArea(edges: .bottom)
+            VStack(spacing: 8) {
                 Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
                     .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
-                    .padding(.bottom, 6)
+                    .padding(.bottom, 4)
                 if let track = state.track {
                     Text(track.title)
-                        .font(.title2.weight(.bold))
+                        .font(landscape ? .title3.weight(.bold) : .title2.weight(.bold))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                     Text(track.artists)
@@ -181,25 +195,34 @@ struct PlayerView: View {
                         .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 32)
-            .offset(y: -size.height * 0.05)
+            .frame(maxWidth: cover + 64)
+            .offset(x: aside, y: -size.height * 0.06 + lift)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // la onda llega al borde de abajo, de lado a lado, y se ve más sin controles
-            VStack {
-                Spacer()
-                VisualizerView(color: fg)
-                    .frame(height: size.height * 0.18)
-                    .opacity(stageShown ? 0.5 : 0.9)
+            Group {
+                if landscape {
+                    // de lado: los controles a la derecha, a media altura, entrando desde el borde
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            seek(state)
+                            controls(state)
+                        }
+                        .frame(width: size.width * 0.42)
+                        .padding(.trailing, 32)
+                        .offset(x: stageShown ? 0 : 48)
+                    }
+                } else {
+                    VStack(spacing: 8) {
+                        Spacer()
+                        seek(state)
+                        controls(state)
+                    }
+                    .frame(maxWidth: 620)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, size.height * 0.1)
+                    .offset(y: stageShown ? 0 : 32)
+                }
             }
-            .ignoresSafeArea(edges: .bottom)
-            VStack(spacing: 8) {
-                Spacer()
-                seek(state)
-                controls(state)
-            }
-            .frame(maxWidth: 620)
-            .padding(.horizontal, 24)
-            .padding(.bottom, 16)
             .opacity(stageShown ? 1 : 0)
             .allowsHitTesting(stageShown)
             VStack {
@@ -223,11 +246,16 @@ struct PlayerView: View {
         .contentShape(Rectangle())
         .onTapGesture { stagePoke += 1 }
         .task(id: stagePoke) {
-            withAnimation(.easeOut(duration: 0.25)) { stageShown = true }
+            withAnimation(.easeInOut(duration: 0.45)) { stageShown = true }
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             if !Task.isCancelled {
                 withAnimation(.easeInOut(duration: 0.9)) { stageShown = false }
             }
+        }
+        .task(id: state.track?.cover) {
+            guard let url = state.track?.cover else { return }
+            let image = await ImagePipeline.shared.image(url)
+            withAnimation(.easeInOut(duration: 0.8)) { stageGlow = image?.vividColors.first }
         }
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
@@ -526,6 +554,96 @@ struct VisualizerView: View {
             engine.spectrumStop()
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// La onda de la pantalla completa, como la del escritorio: colinas suaves y rellenas que siguen
+/// la música, con un brillo difuso del color de la portada. Se mueve suavizada, sin saltos.
+struct StageWave: View {
+    @EnvironmentObject private var store: Store
+    let color: Color
+    @State private var levels: [Float] = []
+
+    var body: some View {
+        let light = color.lighter(0.35)
+        ZStack {
+            // el brillo: la misma onda, desenfocada
+            Canvas { context, size in
+                guard let path = StageWave.hills(levels, in: size) else { return }
+                context.fill(path, with: .linearGradient(
+                    Gradient(colors: [light.opacity(0.85), color.opacity(0.2)]),
+                    startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+            }
+            .blur(radius: 22)
+            Canvas { context, size in
+                guard let path = StageWave.hills(levels, in: size) else { return }
+                context.fill(path, with: .linearGradient(
+                    Gradient(colors: [light.opacity(0.55), color.opacity(0.08)]),
+                    startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                context.stroke(path, with: .color(light.opacity(0.9)), lineWidth: 2)
+            }
+        }
+        .task {
+            let engine = store.engine
+            while !Task.isCancelled {
+                let target = await Task.detached { engine.spectrum() }.value
+                if levels.count == target.count {
+                    levels = zip(levels, target).map { $0 + ($1 - $0) * 0.3 }
+                } else {
+                    levels = target
+                }
+                try? await Task.sleep(nanoseconds: 33_000_000)
+            }
+            engine.spectrumStop()
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// El contorno de las colinas, cerrado por abajo para rellenarlo. `nil` sin música.
+    static func hills(_ levels: [Float], in size: CGSize) -> Path? {
+        guard levels.count > 1 else { return nil }
+        // un promedio con las vecinas redondea los picos, como en el escritorio
+        let smooth: [CGFloat] = levels.indices.map { index in
+            let left = levels[max(0, index - 1)]
+            let right = levels[min(levels.count - 1, index + 1)]
+            return CGFloat((left + 2 * levels[index] + right) / 4)
+        }
+        let step = size.width / CGFloat(smooth.count - 1)
+        func y(_ level: CGFloat) -> CGFloat {
+            let shaped = pow(min(max(level, 0), 1), 0.75)
+            return size.height - (0.06 + 0.9 * shaped) * size.height
+        }
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: size.height))
+        path.addLine(to: CGPoint(x: 0, y: y(smooth[0])))
+        for index in 1..<smooth.count {
+            let x0 = CGFloat(index - 1) * step
+            let x1 = CGFloat(index) * step
+            let mid = (x0 + x1) / 2
+            path.addCurve(
+                to: CGPoint(x: x1, y: y(smooth[index])),
+                control1: CGPoint(x: mid, y: y(smooth[index - 1])),
+                control2: CGPoint(x: mid, y: y(smooth[index]))
+            )
+        }
+        path.addLine(to: CGPoint(x: size.width, y: size.height))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private extension Color {
+    /// El mismo color, mezclado con blanco en la proporción `amount` (0 a 1).
+    func lighter(_ amount: CGFloat) -> Color {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return Color(
+            red: red + (1 - red) * amount,
+            green: green + (1 - green) * amount,
+            blue: blue + (1 - blue) * amount,
+            opacity: alpha
+        )
     }
 }
 

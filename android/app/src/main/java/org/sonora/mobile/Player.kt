@@ -288,7 +288,7 @@ fun PlayerScreen(onClose: () -> Unit) {
             Box(Modifier.fillMaxSize()) {
                 Backdrop(track.cover, tint)
                 if (stage) {
-                    Stage(state, track, play) { stage = false }
+                    Stage(state, track, tint.colors.firstOrNull() ?: content, play) { stage = false }
                 } else if (twoColumns) {
                     Row(
                         Modifier.fillMaxSize().safeDrawingPadding().padding(
@@ -372,11 +372,13 @@ private const val STAGE_HIDE_MS = 4_000L
 
 /**
  * Pantalla completa, como en el escritorio: la portada en el centro sobre el fondo desenfocado,
- * la onda de la música a lo ancho del borde de abajo y los controles, que se esconden solos.
- * Tocar la pantalla (o cualquier botón del control en la TV) los vuelve a mostrar; atrás sale.
+ * una onda luminosa del color de la portada a lo ancho del borde de abajo y los controles, que
+ * se esconden solos. Al mostrarlos, la portada se corre (a la izquierda con la pantalla de lado,
+ * hacia arriba de pie) para que no queden encima. Un toque (o una tecla del control) los
+ * muestra; atrás sale.
  */
 @Composable
-private fun Stage(state: PlaybackState, track: TrackItem, play: FocusRequester, onExit: () -> Unit) {
+private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, play: FocusRequester, onExit: () -> Unit) {
     var poked by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
     var shown by remember { mutableStateOf(true) }
     LaunchedEffect(poked) {
@@ -384,7 +386,7 @@ private fun Stage(state: PlaybackState, track: TrackItem, play: FocusRequester, 
         delay(STAGE_HIDE_MS)
         shown = false
     }
-    val controls by animateFloatAsState(if (shown) 1f else 0f, tween(if (shown) 250 else 900), label = "controls")
+    val controls by animateFloatAsState(if (shown) 1f else 0f, tween(if (shown) 300 else 900), label = "controls")
     BackHandler(onBack = onExit)
     Immersive()
     LaunchedEffect(Unit) { runCatching { play.requestFocus() } }
@@ -399,17 +401,41 @@ private fun Stage(state: PlaybackState, track: TrackItem, play: FocusRequester, 
                 hidden
             },
     ) {
-        val cover = minOf(maxWidth * 0.36f, maxHeight * 0.5f).coerceAtLeast(120.dp)
+        val landscape = maxWidth > maxHeight
+        val cover = if (landscape) {
+            minOf(maxWidth * 0.34f, maxHeight * 0.5f)
+        } else {
+            minOf(maxWidth * 0.72f, maxHeight * 0.4f)
+        }.coerceAtLeast(120.dp)
+        // con los controles a la vista, la portada les hace sitio
+        val aside by animateDpAsState(
+            if (shown && landscape) -maxWidth * 0.21f else 0.dp,
+            tween(if (shown) 450 else 900, easing = FastOutSlowInEasing),
+            label = "aside",
+        )
+        val lift by animateDpAsState(
+            if (shown && !landscape) -maxHeight * 0.1f else 0.dp,
+            tween(if (shown) 450 else 900, easing = FastOutSlowInEasing),
+            label = "lift",
+        )
+        StageWave(
+            glow,
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(maxHeight * if (landscape) 0.3f else 0.22f),
+        )
         Column(
-            Modifier.align(Alignment.Center).offset(y = -maxHeight * 0.05f).padding(horizontal = 32.dp),
+            Modifier
+                .align(Alignment.Center)
+                .offset(x = aside, y = -maxHeight * 0.06f + lift)
+                .widthIn(max = cover + 64.dp)
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Cover(state.coverLarge ?: track.cover, cover, under = track.cover)
-            Spacer(Modifier.size(6.dp))
+            Spacer(Modifier.size(4.dp))
             Text(
                 track.title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = if (landscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -423,21 +449,25 @@ private fun Stage(state: PlaybackState, track: TrackItem, play: FocusRequester, 
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        // la onda llega al borde de abajo, de lado a lado, y se ve más cuando no hay controles
-        Visualizer(
+        val panel = if (landscape) {
+            // de lado: los controles a la derecha, a media altura, entrando desde el borde
             Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(maxHeight * 0.18f)
-                .graphicsLayer { alpha = 0.5f + 0.4f * (1f - controls) },
-        )
-        Column(
+                .align(Alignment.CenterEnd)
+                .width(maxWidth * 0.42f)
+                .padding(end = 32.dp)
+                .offset(x = 48.dp * (1f - controls))
+        } else {
             Modifier
                 .align(Alignment.BottomCenter)
                 .widthIn(max = 620.dp)
                 .fillMaxWidth()
+                .padding(bottom = maxHeight * 0.1f)
+                .offset(y = 32.dp * (1f - controls))
+        }
+        Column(
+            panel
                 .safeDrawingPadding()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 16.dp)
                 .graphicsLayer { alpha = controls },
         ) {
             Seek(state)
@@ -452,6 +482,77 @@ private fun Stage(state: PlaybackState, track: TrackItem, play: FocusRequester, 
             Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { poked = SystemClock.uptimeMillis() } })
         }
     }
+}
+
+/**
+ * La onda de la pantalla completa, como la del escritorio: colinas suaves y rellenas que siguen
+ * la música, con un brillo difuso del color de la portada. Se mueve suavizada, sin saltos.
+ */
+@Composable
+private fun StageWave(color: Color, modifier: Modifier) {
+    var levels by remember { mutableStateOf(FloatArray(0)) }
+    LaunchedEffect(Unit) {
+        try {
+            while (true) {
+                val target = withContext(Dispatchers.Default) { Store.engine.spectrum() }.toFloatArray()
+                val before = levels
+                levels = when (before.size == target.size) {
+                    true -> FloatArray(target.size) { before[it] + (target[it] - before[it]) * 0.3f }
+                    false -> target
+                }
+                delay(33)
+            }
+        } finally {
+            Store.engine.spectrumStop()
+        }
+    }
+    val light = lerp(color, Color.White, 0.35f)
+    Box(modifier) {
+        // el brillo: la misma onda, más ancha y desenfocada (Android 12 en adelante)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Canvas(Modifier.fillMaxSize().blur(22.dp, BlurredEdgeTreatment.Unbounded)) {
+                val path = hills(levels, size) ?: return@Canvas
+                drawPath(path, Brush.verticalGradient(listOf(light.copy(alpha = 0.85f), color.copy(alpha = 0.2f))))
+            }
+        }
+        Canvas(Modifier.fillMaxSize()) {
+            val path = hills(levels, size) ?: return@Canvas
+            drawPath(path, Brush.verticalGradient(listOf(light.copy(alpha = 0.55f), color.copy(alpha = 0.08f))))
+            drawPath(
+                path,
+                color = light.copy(alpha = 0.9f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+            )
+        }
+    }
+}
+
+/** El contorno de las colinas: cerrado por abajo, para rellenarlo. `null` sin música. */
+private fun hills(levels: FloatArray, size: Size): androidx.compose.ui.graphics.Path? {
+    if (levels.size < 2) return null
+    // un promedio con las vecinas redondea los picos, como en el escritorio
+    val smooth = FloatArray(levels.size) { index ->
+        val left = levels[maxOf(0, index - 1)]
+        val right = levels[minOf(levels.lastIndex, index + 1)]
+        (left + 2 * levels[index] + right) / 4f
+    }
+    val step = size.width / (smooth.size - 1)
+    fun y(level: Float): Float {
+        val shaped = Math.pow(level.coerceIn(0f, 1f).toDouble(), 0.75).toFloat()
+        return size.height - (0.06f + 0.9f * shaped) * size.height
+    }
+    val path = androidx.compose.ui.graphics.Path()
+    path.moveTo(0f, size.height)
+    path.lineTo(0f, y(smooth[0]))
+    for (index in 1 until smooth.size) {
+        val x0 = (index - 1) * step
+        val x1 = index * step
+        val mid = (x0 + x1) / 2
+        path.cubicTo(mid, y(smooth[index - 1]), mid, y(smooth[index]), x1, y(smooth[index]))
+    }
+    path.lineTo(size.width, size.height)
+    path.close()
+    return path
 }
 
 /** Esconde las barras del sistema y deja la pantalla encendida mientras dura la pantalla completa. */

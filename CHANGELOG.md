@@ -10,6 +10,13 @@ fallos corregidos. Lo que dice _(prueba)_ todavía no llega por la actualizació
 TK-Music está hecho sobre [Sonora](https://github.com/sonorahq/sonora), de Pavel Olizko. Los
 cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
+## [Sin publicar]
+
+### Cambios
+
+- Pantalla completa: al mostrar los controles, la portada les hace sitio (se corre a la izquierda con la pantalla de lado, hacia arriba de pie), así ya no quedan encima del título.
+- Pantalla completa: la onda de abajo ahora es como la del PC, colinas rellenas con un brillo del color de la portada que se mueven suave con la música.
+
 ## [1.0.17] — 2026-11-17
 
 ### Nuevo
@@ -151,6 +158,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 - Primera versión de TK-Music en su propio repositorio: Android, Android TV, Android Auto, iPhone y iPad.
 
+[Sin publicar]: https://github.com/rprofe358/TK-Music/compare/v1.0.17...main
 [1.0.17]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.17
 [1.0.15]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.15
 [1.0.14]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.14
