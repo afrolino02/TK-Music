@@ -10,7 +10,7 @@ fallos corregidos. Lo que dice _(prueba)_ todavía no llega por la actualizació
 TK-Music está hecho sobre [Sonora](https://github.com/sonorahq/sonora), de Pavel Olizko. Los
 cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
-## [Sin publicar]
+## [1.0.15] — 2026-11-17
 
 ### Nuevo
 
@@ -138,7 +138,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 - Primera versión de TK-Music en su propio repositorio: Android, Android TV, Android Auto, iPhone y iPad.
 
-[Sin publicar]: https://github.com/rprofe358/TK-Music/compare/v1.0.14...main
+[1.0.15]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.15
 [1.0.14]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.14
 [1.0.11]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.11
 [1.0.10]: https://github.com/rprofe358/TK-Music/releases/tag/v1.0.10
