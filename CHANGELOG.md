@@ -15,6 +15,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 ### Cambios
 
 - Pantalla completa: al mostrar los controles, la portada les hace sitio (se corre a la izquierda con la pantalla de lado, hacia arriba de pie), así ya no quedan encima del título.
+- Pantalla completa: una segunda onda detrás, más alta y transparente, que sigue los agudos con el segundo color de la portada, para dar profundidad. Las ondas llegan de borde a borde de la pantalla.
 - Pantalla completa: la onda de abajo ahora es como la del PC, colinas rellenas con un brillo del color de la portada que se mueven suave con la música.
 
 ## [1.0.17] — 2026-11-17

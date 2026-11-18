@@ -288,7 +288,13 @@ fun PlayerScreen(onClose: () -> Unit) {
             Box(Modifier.fillMaxSize()) {
                 Backdrop(track.cover, tint)
                 if (stage) {
-                    Stage(state, track, tint.colors.firstOrNull() ?: content, play) { stage = false }
+                    Stage(
+                        state,
+                        track,
+                        glow = tint.colors.getOrNull(0) ?: content,
+                        depth = tint.colors.getOrNull(1) ?: tint.colors.getOrNull(0) ?: content,
+                        play = play,
+                    ) { stage = false }
                 } else if (twoColumns) {
                     Row(
                         Modifier.fillMaxSize().safeDrawingPadding().padding(
@@ -378,7 +384,7 @@ private const val STAGE_HIDE_MS = 4_000L
  * muestra; atrás sale.
  */
 @Composable
-private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, play: FocusRequester, onExit: () -> Unit) {
+private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Color, play: FocusRequester, onExit: () -> Unit) {
     var poked by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
     var shown by remember { mutableStateOf(true) }
     LaunchedEffect(poked) {
@@ -420,6 +426,7 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, play: Foc
         )
         StageWave(
             glow,
+            depth,
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(maxHeight * if (landscape) 0.3f else 0.22f),
         )
         Column(
@@ -484,21 +491,27 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, play: Foc
     }
 }
 
+/** Cuántos puntos tiene cada onda de la pantalla completa. */
+private const val WAVE_POINTS = 24
+
 /**
- * La onda de la pantalla completa, como la del escritorio: colinas suaves y rellenas que siguen
- * la música, con un brillo difuso del color de la portada. Se mueve suavizada, sin saltos.
+ * Las ondas de la pantalla completa, como la del escritorio: colinas suaves y rellenas que siguen
+ * la música, con un brillo difuso del color de la portada. Adelante van los graves y medios; atrás,
+ * más alta, transparente y lenta, otra con los agudos y el segundo color de la portada, para dar
+ * profundidad. Se mueven suavizadas, sin saltos.
  */
 @Composable
-private fun StageWave(color: Color, modifier: Modifier) {
-    var levels by remember { mutableStateOf(FloatArray(0)) }
+private fun StageWave(color: Color, depth: Color, modifier: Modifier) {
+    var front by remember { mutableStateOf(FloatArray(0)) }
+    var back by remember { mutableStateOf(FloatArray(0)) }
     LaunchedEffect(Unit) {
         try {
             while (true) {
-                val target = withContext(Dispatchers.Default) { Store.engine.spectrum() }.toFloatArray()
-                val before = levels
-                levels = when (before.size == target.size) {
-                    true -> FloatArray(target.size) { before[it] + (target[it] - before[it]) * 0.3f }
-                    false -> target
+                val bands = withContext(Dispatchers.Default) { Store.engine.spectrum() }.toFloatArray()
+                if (bands.size >= 2) {
+                    front = ease(front, section(bands, 0f, 0.6f, gain = 1f), 0.3f)
+                    // los agudos suenan más bajo: se les da más fuerza para que se vean
+                    back = ease(back, section(bands, 0.35f, 1f, gain = 1.8f), 0.15f)
                 }
                 delay(33)
             }
@@ -507,28 +520,63 @@ private fun StageWave(color: Color, modifier: Modifier) {
         }
     }
     val light = lerp(color, Color.White, 0.35f)
+    val far = lerp(depth, Color.White, 0.2f)
     Box(modifier) {
-        // el brillo: la misma onda, más ancha y desenfocada (Android 12 en adelante)
+        // el brillo: las mismas ondas, desenfocadas (Android 12 en adelante)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Canvas(Modifier.fillMaxSize().blur(22.dp, BlurredEdgeTreatment.Unbounded)) {
-                val path = hills(levels, size) ?: return@Canvas
-                drawPath(path, Brush.verticalGradient(listOf(light.copy(alpha = 0.85f), color.copy(alpha = 0.2f))))
+            Canvas(Modifier.fillMaxSize().blur(24.dp, BlurredEdgeTreatment.Unbounded)) {
+                hills(back, size, base = 0.12f, reach = 0.85f)?.let {
+                    drawPath(it, Brush.verticalGradient(listOf(far.copy(alpha = 0.4f), depth.copy(alpha = 0.05f))))
+                }
+                hills(front, size, base = 0.05f, reach = 0.7f)?.let {
+                    drawPath(it, Brush.verticalGradient(listOf(light.copy(alpha = 0.85f), color.copy(alpha = 0.2f))))
+                }
             }
         }
         Canvas(Modifier.fillMaxSize()) {
-            val path = hills(levels, size) ?: return@Canvas
-            drawPath(path, Brush.verticalGradient(listOf(light.copy(alpha = 0.55f), color.copy(alpha = 0.08f))))
-            drawPath(
-                path,
-                color = light.copy(alpha = 0.9f),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
-            )
+            hills(back, size, base = 0.12f, reach = 0.85f)?.let {
+                drawPath(it, Brush.verticalGradient(listOf(far.copy(alpha = 0.28f), depth.copy(alpha = 0.03f))))
+                drawPath(
+                    it,
+                    color = far.copy(alpha = 0.45f),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()),
+                )
+            }
+            hills(front, size, base = 0.05f, reach = 0.7f)?.let {
+                drawPath(it, Brush.verticalGradient(listOf(light.copy(alpha = 0.55f), color.copy(alpha = 0.08f))))
+                drawPath(
+                    it,
+                    color = light.copy(alpha = 0.9f),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+                )
+            }
         }
     }
 }
 
-/** El contorno de las colinas: cerrado por abajo, para rellenarlo. `null` sin música. */
-private fun hills(levels: FloatArray, size: Size): androidx.compose.ui.graphics.Path? {
+/** Un tramo del espectro (de `from` a `to`, de 0 a 1), repartido en [WAVE_POINTS] puntos. */
+private fun section(bands: FloatArray, from: Float, to: Float, gain: Float): FloatArray {
+    val last = bands.lastIndex
+    return FloatArray(WAVE_POINTS) { point ->
+        val at = (from + (to - from) * point / (WAVE_POINTS - 1)) * last
+        val low = at.toInt().coerceIn(0, last)
+        val high = (low + 1).coerceAtMost(last)
+        val mix = at - low
+        ((bands[low] * (1 - mix) + bands[high] * mix) * gain).coerceIn(0f, 1f)
+    }
+}
+
+/** Acerca `now` a `target` un poco (`amount`), para que la onda no salte. */
+private fun ease(now: FloatArray, target: FloatArray, amount: Float): FloatArray = when (now.size == target.size) {
+    true -> FloatArray(target.size) { now[it] + (target[it] - now[it]) * amount }
+    false -> target
+}
+
+/**
+ * El contorno de las colinas, cerrado por abajo para rellenarlo: `base` es la altura mínima y
+ * `reach` lo que sube con la música, como parte de la altura. `null` sin música.
+ */
+private fun hills(levels: FloatArray, size: Size, base: Float, reach: Float): androidx.compose.ui.graphics.Path? {
     if (levels.size < 2) return null
     // un promedio con las vecinas redondea los picos, como en el escritorio
     val smooth = FloatArray(levels.size) { index ->
@@ -539,7 +587,7 @@ private fun hills(levels: FloatArray, size: Size): androidx.compose.ui.graphics.
     val step = size.width / (smooth.size - 1)
     fun y(level: Float): Float {
         val shaped = Math.pow(level.coerceIn(0f, 1f).toDouble(), 0.75).toFloat()
-        return size.height - (0.06f + 0.9f * shaped) * size.height
+        return size.height - (base + reach * shaped) * size.height
     }
     val path = androidx.compose.ui.graphics.Path()
     path.moveTo(0f, size.height)

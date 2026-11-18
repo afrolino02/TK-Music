@@ -26,6 +26,8 @@ struct PlayerView: View {
     @State private var stagePoke = 0
     /// El color más vivo de la portada, para la onda de la pantalla completa.
     @State private var stageGlow: Color?
+    /// El segundo color de la portada, para la onda de atrás.
+    @State private var stageDepth: Color?
     /// Lo que se tocó en el corazón, mientras el servicio lo confirma.
 
     private var fg: Color { light ? Color(white: 0.08) : .white }
@@ -175,12 +177,13 @@ struct PlayerView: View {
         let aside: CGFloat = stageShown && landscape ? -size.width * 0.21 : 0
         let lift: CGFloat = stageShown && !landscape ? -size.height * 0.1 : 0
         return ZStack {
+            // de borde a borde, también debajo de la isla y de la barra de inicio
             VStack {
                 Spacer()
-                StageWave(color: stageGlow ?? fg)
+                StageWave(color: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg)
                     .frame(height: size.height * (landscape ? 0.3 : 0.22))
             }
-            .ignoresSafeArea(edges: .bottom)
+            .ignoresSafeArea()
             VStack(spacing: 8) {
                 Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
                     .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
@@ -255,7 +258,11 @@ struct PlayerView: View {
         .task(id: state.track?.cover) {
             guard let url = state.track?.cover else { return }
             let image = await ImagePipeline.shared.image(url)
-            withAnimation(.easeInOut(duration: 0.8)) { stageGlow = image?.vividColors.first }
+            let colors = image?.vividColors ?? []
+            withAnimation(.easeInOut(duration: 0.8)) {
+                stageGlow = colors.first
+                stageDepth = colors.dropFirst().first
+            }
         }
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
@@ -557,40 +564,61 @@ struct VisualizerView: View {
     }
 }
 
-/// La onda de la pantalla completa, como la del escritorio: colinas suaves y rellenas que siguen
-/// la música, con un brillo difuso del color de la portada. Se mueve suavizada, sin saltos.
+/// Las ondas de la pantalla completa, como la del escritorio: colinas suaves y rellenas que
+/// siguen la música, con un brillo difuso del color de la portada. Adelante van los graves y
+/// medios; atrás, más alta, transparente y lenta, otra con los agudos y el segundo color de la
+/// portada, para dar profundidad. Se mueven suavizadas, sin saltos.
 struct StageWave: View {
     @EnvironmentObject private var store: Store
     let color: Color
-    @State private var levels: [Float] = []
+    let depth: Color
+    @State private var front: [Float] = []
+    @State private var back: [Float] = []
+
+    /// Cuántos puntos tiene cada onda.
+    private static let points = 24
 
     var body: some View {
         let light = color.lighter(0.35)
+        let far = depth.lighter(0.2)
         ZStack {
-            // el brillo: la misma onda, desenfocada
+            // el brillo: las mismas ondas, desenfocadas
             Canvas { context, size in
-                guard let path = StageWave.hills(levels, in: size) else { return }
-                context.fill(path, with: .linearGradient(
-                    Gradient(colors: [light.opacity(0.85), color.opacity(0.2)]),
-                    startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                if let path = StageWave.hills(back, in: size, base: 0.12, reach: 0.85) {
+                    context.fill(path, with: .linearGradient(
+                        Gradient(colors: [far.opacity(0.4), depth.opacity(0.05)]),
+                        startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                }
+                if let path = StageWave.hills(front, in: size, base: 0.05, reach: 0.7) {
+                    context.fill(path, with: .linearGradient(
+                        Gradient(colors: [light.opacity(0.85), color.opacity(0.2)]),
+                        startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                }
             }
-            .blur(radius: 22)
+            .blur(radius: 24)
             Canvas { context, size in
-                guard let path = StageWave.hills(levels, in: size) else { return }
-                context.fill(path, with: .linearGradient(
-                    Gradient(colors: [light.opacity(0.55), color.opacity(0.08)]),
-                    startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
-                context.stroke(path, with: .color(light.opacity(0.9)), lineWidth: 2)
+                if let path = StageWave.hills(back, in: size, base: 0.12, reach: 0.85) {
+                    context.fill(path, with: .linearGradient(
+                        Gradient(colors: [far.opacity(0.28), depth.opacity(0.03)]),
+                        startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                    context.stroke(path, with: .color(far.opacity(0.45)), lineWidth: 1.5)
+                }
+                if let path = StageWave.hills(front, in: size, base: 0.05, reach: 0.7) {
+                    context.fill(path, with: .linearGradient(
+                        Gradient(colors: [light.opacity(0.55), color.opacity(0.08)]),
+                        startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                    context.stroke(path, with: .color(light.opacity(0.9)), lineWidth: 2)
+                }
             }
         }
         .task {
             let engine = store.engine
             while !Task.isCancelled {
-                let target = await Task.detached { engine.spectrum() }.value
-                if levels.count == target.count {
-                    levels = zip(levels, target).map { $0 + ($1 - $0) * 0.3 }
-                } else {
-                    levels = target
+                let bands = await Task.detached { engine.spectrum() }.value
+                if bands.count >= 2 {
+                    front = StageWave.ease(front, StageWave.section(bands, from: 0, to: 0.6, gain: 1), 0.3)
+                    // los agudos suenan más bajo: se les da más fuerza para que se vean
+                    back = StageWave.ease(back, StageWave.section(bands, from: 0.35, to: 1, gain: 1.8), 0.15)
                 }
                 try? await Task.sleep(nanoseconds: 33_000_000)
             }
@@ -600,8 +628,27 @@ struct StageWave: View {
         .accessibilityHidden(true)
     }
 
-    /// El contorno de las colinas, cerrado por abajo para rellenarlo. `nil` sin música.
-    static func hills(_ levels: [Float], in size: CGSize) -> Path? {
+    /// Un tramo del espectro (de `from` a `to`, de 0 a 1), repartido en `points` puntos.
+    static func section(_ bands: [Float], from: Float, to: Float, gain: Float) -> [Float] {
+        let last = Float(bands.count - 1)
+        return (0..<points).map { point in
+            let at = (from + (to - from) * Float(point) / Float(points - 1)) * last
+            let low = min(max(Int(at), 0), bands.count - 1)
+            let high = min(low + 1, bands.count - 1)
+            let mix = at - Float(low)
+            return min(max((bands[low] * (1 - mix) + bands[high] * mix) * gain, 0), 1)
+        }
+    }
+
+    /// Acerca `now` a `target` un poco (`amount`), para que la onda no salte.
+    static func ease(_ now: [Float], _ target: [Float], _ amount: Float) -> [Float] {
+        guard now.count == target.count else { return target }
+        return zip(now, target).map { $0 + ($1 - $0) * amount }
+    }
+
+    /// El contorno de las colinas, cerrado por abajo para rellenarlo: `base` es la altura mínima
+    /// y `reach` lo que sube con la música, como parte de la altura. `nil` sin música.
+    static func hills(_ levels: [Float], in size: CGSize, base: CGFloat, reach: CGFloat) -> Path? {
         guard levels.count > 1 else { return nil }
         // un promedio con las vecinas redondea los picos, como en el escritorio
         let smooth: [CGFloat] = levels.indices.map { index in
@@ -612,7 +659,7 @@ struct StageWave: View {
         let step = size.width / CGFloat(smooth.count - 1)
         func y(_ level: CGFloat) -> CGFloat {
             let shaped = pow(min(max(level, 0), 1), 0.75)
-            return size.height - (0.06 + 0.9 * shaped) * size.height
+            return size.height - (base + reach * shaped) * size.height
         }
         var path = Path()
         path.move(to: CGPoint(x: 0, y: size.height))
