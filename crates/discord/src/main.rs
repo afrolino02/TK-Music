@@ -48,6 +48,7 @@ async fn run() -> Result<(), Error> {
     println!("Conectando con YouTube Music…");
     let music = music::Music::connect().await?;
     println!("YouTube Music listo ({}).", music.account());
+    music.warm_up();
 
     let full = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     match start(&config, music, full).await {

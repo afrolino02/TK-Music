@@ -258,13 +258,28 @@ pub async fn request(
     query: &str,
     requested_by: &str,
 ) -> Result<serenity::CreateEmbed, Error> {
+    let started = std::time::Instant::now();
     let songs = match bot.music.find(query, requested_by).await {
         Ok(songs) => songs,
         Err(error) => return Ok(panel::note(format!("🔎 {error}"))),
     };
-    bot.join(guild, voice, text).await?;
+    log::info!("buscar «{query}»: {:.1} s", started.elapsed().as_secs_f32());
     let playing_now = bot.current(guild).await.is_none();
-    bot.enqueue(guild, songs.clone()).await?;
+    // si no suena nada, el audio de la primera se baja mientras el bot entra al canal
+    let first = playing_now.then(|| crate::audio::prefetch(&songs[0], bot.music.decoder()));
+    // contestar ya, y entrar y encolar por detrás: Discord deja de mostrar «pensando…»
+    let bot = bot.clone();
+    let queued = songs.clone();
+    tokio::spawn(async move {
+        let result = async {
+            bot.join(guild, voice, text).await?;
+            bot.enqueue(guild, queued, first).await
+        }
+        .await;
+        if let Err(error) = result {
+            bot.say(guild, format!("⚠️ {error}")).await;
+        }
+    });
     Ok(panel::added(&songs, playing_now))
 }
 

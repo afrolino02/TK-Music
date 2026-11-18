@@ -14,7 +14,7 @@ use songbird::tracks::{PlayMode, Track, TrackHandle};
 use songbird::{Call, Songbird};
 use tokio::sync::Mutex;
 
-use crate::audio::Lazy;
+use crate::audio::{Lazy, Prefetch};
 use crate::music::{Music, Song};
 use crate::panel;
 
@@ -120,15 +120,16 @@ impl Bot {
         Ok(call)
     }
 
-    /// Agrega canciones al final de la cola.
-    pub async fn enqueue(&self, guild: GuildId, songs: Vec<Song>) -> Result<usize> {
+    /// Agrega canciones al final de la cola. `first` es el audio de la primera, si ya se empezó
+    /// a descargar.
+    pub async fn enqueue(&self, guild: GuildId, songs: Vec<Song>, mut first: Option<Prefetch>) -> Result<usize> {
         let call = self.call(guild).context("no estoy en ningún canal de voz")?;
         let volume = self.peek(guild, |room| room.volume).await.unwrap_or(self.default_volume);
         let mut call = call.lock().await;
         let count = songs.len();
         for song in songs {
             let data = Arc::new(song.clone());
-            let input = Lazy::input(song, self.music.decoder());
+            let input = Lazy::input(song, self.music.decoder(), first.take());
             let track = Track::new_with_data(input, data).volume(volume);
             call.enqueue(track).await;
         }
@@ -257,7 +258,7 @@ impl Bot {
         if radio && let Some(last) = last {
             match self.music.radio(&last, RADIO_BATCH).await {
                 Ok(songs) if !songs.is_empty() => {
-                    if let Err(error) = self.enqueue(guild, songs).await {
+                    if let Err(error) = self.enqueue(guild, songs, None).await {
                         log::warn!("radio: {error:#}");
                     }
                     return;

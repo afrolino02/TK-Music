@@ -17,6 +17,8 @@ use music::{
 
 /// Cuánto se espera a cada servicio de letras.
 const LYRICS_PATIENCE: Duration = Duration::from_secs(6);
+/// Una canción cualquiera de YouTube Music para preparar la conexión al abrir el bot.
+const WARM_UP: &str = "kJQP7kiw5Fk";
 /// Cuántas canciones se agregan como mucho de una playlist o álbum.
 const LIST_LIMIT: usize = 100;
 
@@ -98,6 +100,20 @@ impl Music {
             true => self.session.profile.display_name.clone(),
             false => "invitado (sin cuenta)".to_owned(),
         }
+    }
+
+    /// Abre una canción y la suelta enseguida, para que YouTube entregue de una vez lo que pide
+    /// la primera vez (el reproductor y el token de seguridad) y la primera canción de verdad
+    /// empiece rápido.
+    pub fn warm_up(&self) {
+        let decoder = self.decoder.clone();
+        tokio::spawn(async move {
+            let started = std::time::Instant::now();
+            match decoder.decode(WARM_UP).await {
+                Ok(_) => log::info!("youtube: listo en {:.1} s", started.elapsed().as_secs_f32()),
+                Err(error) => log::debug!("youtube: no se pudo preparar: {error:#}"),
+            }
+        });
     }
 
     pub fn decoder(&self) -> Arc<dyn Decode> {

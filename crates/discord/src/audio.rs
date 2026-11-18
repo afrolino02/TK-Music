@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use music::engine::Decode;
+use music::engine::{Decode, Decoded};
 use songbird::input::{AudioStream, AudioStreamError, AuxMetadata, Compose, Input, RawAdapter};
 use symphonia::core::io::MediaSource;
 
@@ -24,15 +24,26 @@ const WAIT: Duration = Duration::from_millis(15);
 /// El silencio que se manda cuando la música no llegó a tiempo, en bytes (unos 5 ms).
 const GAP: usize = 4 * 2 * 256;
 
+/// Un audio que ya se empezó a descargar, para que la primera canción no espere a que el bot
+/// termine de entrar al canal de voz.
+pub type Prefetch = tokio::task::JoinHandle<anyhow::Result<Decoded>>;
+
+/// Empieza a descargar y abrir `song` ya mismo.
+pub fn prefetch(song: &Song, decoder: Arc<dyn Decode>) -> Prefetch {
+    let id = song.id.clone();
+    tokio::spawn(async move { decoder.decode(&id).await })
+}
+
 /// Una canción por abrir: songbird la crea justo antes de que suene.
 pub struct Lazy {
     song: Song,
     decoder: Arc<dyn Decode>,
+    ready: Option<Prefetch>,
 }
 
 impl Lazy {
-    pub fn input(song: Song, decoder: Arc<dyn Decode>) -> Input {
-        Input::Lazy(Box::new(Self { song, decoder }))
+    pub fn input(song: Song, decoder: Arc<dyn Decode>, ready: Option<Prefetch>) -> Input {
+        Input::Lazy(Box::new(Self { song, decoder, ready }))
     }
 }
 
@@ -45,11 +56,16 @@ impl Compose for Lazy {
     async fn create_async(
         &mut self,
     ) -> Result<AudioStream<Box<dyn MediaSource>>, AudioStreamError> {
-        let decoded = self
-            .decoder
-            .decode(&self.song.id)
-            .await
-            .map_err(|error| AudioStreamError::Fail(error.into()))?;
+        let started = std::time::Instant::now();
+        let decoded = match self.ready.take() {
+            Some(ready) => match ready.await {
+                Ok(decoded) => decoded,
+                Err(error) => Err(anyhow::anyhow!("la descarga se cortó: {error}")),
+            },
+            None => self.decoder.decode(&self.song.id).await,
+        }
+        .map_err(|error| AudioStreamError::Fail(error.into()))?;
+        log::info!("audio: «{}» listo en {:.1} s", self.song.title, started.elapsed().as_secs_f32());
         let rate = decoded.source.sample_rate().get();
         let channels = u32::from(decoded.source.channels().get());
         let (sender, receiver) = sync_channel(AHEAD);
