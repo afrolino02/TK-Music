@@ -7,15 +7,15 @@
 	<key>CFBundleExecutable</key>
 	<string>sonora</string>
 	<key>CFBundleIconFile</key>
-	<string>sonora</string>
+	<string>tk-music</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.nolight.sonora</string>
+	<string>io.github.rprofe358.tkmusic</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Sonora</string>
+	<string>TK-Music</string>
 	<key>CFBundleDisplayName</key>
-	<string>Sonora</string>
+	<string>TK-Music</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -26,7 +26,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>Sonora link</string>
+			<string>TK-Music link</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>sonora</string>

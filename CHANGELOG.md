@@ -12,6 +12,10 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ## [Sin publicar]
 
+### Nuevo
+
+- TK-Music para Mac: un .dmg para Mac con chip Apple (M1 en adelante) o Intel, con macOS 11 o más nuevo. Se instala arrastrándolo a Aplicaciones y se actualiza sola, como en Windows.
+
 ### Cambios
 
 - Pantalla completa: al mostrar los controles, la portada les hace sitio (se corre a la izquierda con la pantalla de lado, hacia arriba de pie), así ya no quedan encima del título.

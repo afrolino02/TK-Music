@@ -4,7 +4,7 @@
 
 <h1>TK-Music</h1>
 
-**Tu música en iPhone, iPad, Android, Android TV, Android Auto y Windows.**
+**Tu música en iPhone, iPad, Android, Android TV, Android Auto, Windows y Mac.**
 
 <sub>Powered by <a href="https://github.com/sonorahq/sonora">Sonora</a></sub>
 
@@ -20,6 +20,7 @@
 |---|---|---|
 | Android, Android TV y Android Auto | [**TK-Music.apk**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music.apk) | Abre el APK en el dispositivo y permite instalar apps de origen desconocido. |
 | Windows (PC) | [**TK-Music-Setup.exe**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music-Setup.exe) | Ejecuta el instalador. Si Windows avisa, toca «Más información» → «Ejecutar de todas formas». Se actualiza sola. |
+| Mac | [**TK-Music-macos.dmg**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music-macos.dmg) | Abre el .dmg y arrastra TK-Music a Aplicaciones. La primera vez macOS avisa que no puede verificarla: Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente». Se actualiza sola. |
 | Bot de Discord (PC) | [**TK-Music-Bot.exe**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music-Bot.exe) | Pone la música en tu canal de voz. Guía paso a paso: [docs/DISCORD.md](docs/DISCORD.md). |
 | iPhone y iPad | [**TK-Music.ipa**](https://github.com/rprofe358/TK-Music/releases/latest/download/TK-Music.ipa) | Instálalo con Sideloadly o AltStore (con una cuenta gratuita se renueva cada 7 días). |
 
@@ -42,7 +43,7 @@ git tag v1.1.0
 git push origin v1.1.0
 ```
 
-GitHub Actions compila el APK, el IPA y el instalador de Windows y los sube a una nueva versión
+GitHub Actions compila el APK, el IPA, el instalador de Windows y el .dmg de Mac y los sube a una nueva versión
 en Releases. La app de Android y la de PC avisan solas de la versión nueva. Cada envío a
 `main` también compila y deja los archivos en la pestaña Actions.
 

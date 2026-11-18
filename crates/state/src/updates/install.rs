@@ -154,7 +154,7 @@ fn setup(installer: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Copies Sonora.app off the disk image beside the running bundle, deletes the image, then
+/// Copies TK-Music.app off the disk image beside the running bundle, deletes the image, then
 /// trades the two bundles by renaming, so a failure part way leaves the old one where it was.
 #[cfg(target_os = "macos")]
 fn swap_bundle(image: &Path, bundle: &Path) -> Result<()> {
@@ -171,10 +171,10 @@ fn swap_bundle(image: &Path, bundle: &Path) -> Result<()> {
         .arg(image))
     .context("cannot open the disk image")?;
 
-    let staged = bundle.with_file_name(".Sonora.app.update");
+    let staged = bundle.with_file_name(".TK-Music.app.update");
     let copied = remove(&staged).and_then(|()| {
         run(Command::new("/usr/bin/ditto")
-            .arg(mount.path().join("Sonora.app"))
+            .arg(mount.path().join("TK-Music.app"))
             .arg(&staged))
         .context("cannot copy the new version off the disk image")
     });
@@ -187,7 +187,7 @@ fn swap_bundle(image: &Path, bundle: &Path) -> Result<()> {
     copied?;
     std::fs::remove_file(image).ok();
 
-    let retired = bundle.with_file_name(".Sonora.app.old");
+    let retired = bundle.with_file_name(".TK-Music.app.old");
     remove(&retired)?;
     std::fs::rename(bundle, &retired).context("cannot move the old version aside")?;
     if let Err(error) = std::fs::rename(&staged, bundle) {

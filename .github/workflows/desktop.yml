@@ -1,8 +1,9 @@
 name: Escritorio
 
-# TK-Music para Windows: la app de escritorio de Sonora con el nombre y el ícono de TK-Music.
-# En cada envío a main deja el instalador en Actions; con una etiqueta v* lo sube a la versión
-# publicada, junto con SHA256SUMS, que la app usa para comprobar sus propias actualizaciones.
+# TK-Music para Windows y Mac: la app de escritorio de Sonora con el nombre y el ícono de
+# TK-Music. En cada envío a main deja el instalador y el .dmg en Actions; con una etiqueta v* los
+# sube a la versión publicada, junto con SHA256SUMS, que la app usa para comprobar sus propias
+# actualizaciones.
 on:
   push:
     branches: [main]
@@ -78,10 +79,7 @@ jobs:
           $env:SONORA_SETUP = "TK-Music-Setup"
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "scripts/windows/sonora.iss"
           Copy-Item "target/x86_64-pc-windows-msvc/release/tk-music-bot.exe" "dist/TK-Music-Bot.exe"
-          Set-Location dist
-          $hash = (Get-FileHash TK-Music-Setup.exe -Algorithm SHA256).Hash.ToLower()
-          "$hash  TK-Music-Setup.exe" | Set-Content -Encoding ascii -NoNewline SHA256SUMS
-          Get-ChildItem
+          Get-ChildItem dist
 
       - uses: actions/upload-artifact@v4
         with:
@@ -89,11 +87,137 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-      - name: Publicar en Releases
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  # un binario por tipo de Mac: Apple (M1 en adelante) e Intel; el paso siguiente los une
+  mac:
+    name: mac (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-15
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
+          targets: ${{ matrix.target }}
+
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-targets: false
+          cache-on-failure: true
+
+      - name: Compilar
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: cargo build --release --locked --package sonora --target ${{ matrix.target }}
+
+      - name: Guardar el binario
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/sonora" "dist/sonora-${{ matrix.target }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darwin-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  # TK-Music.app con los dos binarios juntos, firmado sin cuenta de Apple y metido en un .dmg
+  mac-app:
+    name: mac (TK-Music.app)
+    needs: mac
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: darwin-*
+          path: darwin
+          merge-multiple: true
+
+      - name: Armar TK-Music.app
+        run: |
+          set -euo pipefail
+          number="0.1.$GITHUB_RUN_NUMBER"
+          case "$GITHUB_REF" in refs/tags/v*) number="${GITHUB_REF_NAME#v}" ;; esac
+          app=TK-Music.app
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          lipo -create -output "$app/Contents/MacOS/sonora" \
+            darwin/sonora-aarch64-apple-darwin darwin/sonora-x86_64-apple-darwin
+          chmod +x "$app/Contents/MacOS/sonora"
+          lipo -info "$app/Contents/MacOS/sonora"
+          cp assets/macos/tk-music.icns "$app/Contents/Resources/"
+          cp COPYING "$app/Contents/Resources/LICENSE"
+          cp THIRD-PARTY.md "$app/Contents/Resources/"
+          cp assets/fonts/LICENSE.txt "$app/Contents/Resources/LICENSE.Inter"
+          mkdir -p "$app/Contents/Resources/icons"
+          cp assets/icons/LICENSE "$app/Contents/Resources/icons/LICENSE"
+          for licence in assets/icons/*/LICENSE; do
+            pack="$(basename "$(dirname "$licence")")"
+            cp "$licence" "$app/Contents/Resources/icons/LICENSE.$pack"
+          done
+          sed "s/@VERSION@/$number/g" assets/macos/Info.plist > "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          jq -n --arg version "$number" '{version: $version, channel: "stable"}' \
+            > "$app/Contents/Resources/sonora-build.json"
+
+      - name: Firmar
+        run: |
+          codesign --force --sign - TK-Music.app
+          codesign --verify --strict --verbose=2 TK-Music.app
+
+      - name: Armar el .dmg
+        run: |
+          set -euo pipefail
+          mkdir -p dist staging
+          cp -R TK-Music.app staging/
+          ln -s /Applications staging/Applications
+          megabytes=$(du -ms staging | cut -f1)
+          hdiutil create -volname TK-Music -srcfolder staging -size "$((megabytes + 128))m" \
+            -ov -format UDZO dist/TK-Music-macos.dmg
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TK-Music-macos
+          path: dist/*
+          if-no-files-found: error
+
+  # sube Windows y Mac a la versión, con un SHA256SUMS que cubre los dos; si el Mac falla,
+  # Windows se publica igual
+  publicar:
+    name: Publicar en Releases
+    needs: [windows, mac-app]
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.windows.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: TK-Music-*
+          path: dist
+          merge-multiple: true
+
+      - name: Calcular SHA256SUMS
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum TK-Music-Setup.exe $(ls TK-Music-macos.dmg 2>/dev/null) > SHA256SUMS
+          cat SHA256SUMS
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: false
           files: |
             dist/TK-Music-Setup.exe
             dist/TK-Music-Bot.exe
+            dist/TK-Music-macos.dmg
             dist/SHA256SUMS
