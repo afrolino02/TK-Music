@@ -154,6 +154,13 @@ import uniffi.sonora_mobile.PlaybackState
 import uniffi.sonora_mobile.SavedKind
 import uniffi.sonora_mobile.TrackItem
 import kotlin.math.abs
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.layout.widthIn
 
 /** Lo que se ve junto a los controles: la letra, la cola o la sesión. */
 private enum class Panel { LYRICS, QUEUE, SESSION }
@@ -256,6 +263,8 @@ fun PlayerScreen(onClose: () -> Unit) {
     val wide = LocalWide.current
     var panel by rememberSaveable { mutableStateOf(if (wide) Panel.LYRICS else null) }
     var adding by remember { mutableStateOf(false) }
+    // pantalla completa, como en el escritorio
+    var stage by rememberSaveable { mutableStateOf(false) }
     val play = remember { FocusRequester() }
 
     Shell(wide, onClose) {
@@ -278,7 +287,9 @@ fun PlayerScreen(onClose: () -> Unit) {
             val twoColumns = wide || configuration.screenWidthDp > configuration.screenHeightDp
             Box(Modifier.fillMaxSize()) {
                 Backdrop(track.cover, tint)
-                if (twoColumns) {
+                if (stage) {
+                    Stage(state, track, play) { stage = false }
+                } else if (twoColumns) {
                     Row(
                         Modifier.fillMaxSize().safeDrawingPadding().padding(
                             horizontal = if (wide) 32.dp else 20.dp,
@@ -305,6 +316,7 @@ fun PlayerScreen(onClose: () -> Unit) {
                         Column(Modifier.weight(0.58f).fillMaxHeight()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { stage = true }) { Icon(Icons.Filled.Fullscreen, "Pantalla completa") }
                                 TrackActions(track, slug, onClose, onAdd = { adding = true })
                                 IconButton(onClick = onClose) {
                                     Icon(if (wide) Icons.Filled.Close else Icons.Filled.KeyboardArrowDown, "Cerrar")
@@ -329,6 +341,7 @@ fun PlayerScreen(onClose: () -> Unit) {
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.weight(1f),
                             )
+                            IconButton(onClick = { stage = true }) { Icon(Icons.Filled.Fullscreen, "Pantalla completa") }
                             TrackActions(track, slug, onClose, onAdd = { adding = true })
                         }
                         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -350,6 +363,110 @@ fun PlayerScreen(onClose: () -> Unit) {
             }
             if (adding) AddSongs(slug) { adding = false }
           }
+        }
+    }
+}
+
+/** Cuánto tardan en esconderse los controles de la pantalla completa sin tocar nada. */
+private const val STAGE_HIDE_MS = 4_000L
+
+/**
+ * Pantalla completa, como en el escritorio: la portada en el centro sobre el fondo desenfocado,
+ * la onda de la música a lo ancho del borde de abajo y los controles, que se esconden solos.
+ * Tocar la pantalla (o cualquier botón del control en la TV) los vuelve a mostrar; atrás sale.
+ */
+@Composable
+private fun Stage(state: PlaybackState, track: TrackItem, play: FocusRequester, onExit: () -> Unit) {
+    var poked by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
+    var shown by remember { mutableStateOf(true) }
+    LaunchedEffect(poked) {
+        shown = true
+        delay(STAGE_HIDE_MS)
+        shown = false
+    }
+    val controls by animateFloatAsState(if (shown) 1f else 0f, tween(if (shown) 250 else 900), label = "controls")
+    BackHandler(onBack = onExit)
+    Immersive()
+    LaunchedEffect(Unit) { runCatching { play.requestFocus() } }
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) { detectTapGestures { poked = SystemClock.uptimeMillis() } }
+            .onPreviewKeyEvent {
+                // con los controles escondidos, la primera tecla solo los muestra
+                val hidden = !shown
+                poked = SystemClock.uptimeMillis()
+                hidden
+            },
+    ) {
+        val cover = minOf(maxWidth * 0.36f, maxHeight * 0.5f).coerceAtLeast(120.dp)
+        Column(
+            Modifier.align(Alignment.Center).offset(y = -maxHeight * 0.05f).padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Cover(state.coverLarge ?: track.cover, cover, under = track.cover)
+            Spacer(Modifier.size(6.dp))
+            Text(
+                track.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                track.artists,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        // la onda llega al borde de abajo, de lado a lado, y se ve más cuando no hay controles
+        Visualizer(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(maxHeight * 0.18f)
+                .graphicsLayer { alpha = 0.5f + 0.4f * (1f - controls) },
+        )
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .widthIn(max = 620.dp)
+                .fillMaxWidth()
+                .safeDrawingPadding()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .graphicsLayer { alpha = controls },
+        ) {
+            Seek(state)
+            Controls(state, play)
+        }
+        IconButton(
+            onClick = onExit,
+            modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(12.dp).graphicsLayer { alpha = controls },
+        ) { Icon(Icons.Filled.FullscreenExit, "Salir de pantalla completa") }
+        // escondidos, los controles no reciben toques: el primero solo los muestra
+        if (!shown) {
+            Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { poked = SystemClock.uptimeMillis() } })
+        }
+    }
+}
+
+/** Esconde las barras del sistema y deja la pantalla encendida mientras dura la pantalla completa. */
+@Composable
+private fun Immersive() {
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: (view.context as? Activity)?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller?.hide(WindowInsetsCompat.Type.systemBars())
+        view.keepScreenOn = true
+        onDispose {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+            view.keepScreenOn = false
         }
     }
 }

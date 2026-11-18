@@ -12,6 +12,10 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ## [Sin publicar]
 
+### Nuevo
+
+- Pantalla completa en el reproductor (tablet, iPad, Android TV y teléfono): la portada grande al centro sobre el fondo desenfocado, la onda de la música a lo ancho de abajo y los controles que se esconden solos, como en el PC.
+
 ### Arreglos
 
 - Bot de Discord: no entraba al canal de voz (se caía al elegir el cifrado de la conexión), por eso no sonaba.

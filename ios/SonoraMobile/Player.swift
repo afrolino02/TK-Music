@@ -19,6 +19,11 @@ struct PlayerView: View {
     @State private var drag: CGFloat = 0
     /// La portada es clara: texto e iconos casi negros en vez de blancos.
     @State private var light = false
+    /// Pantalla completa, como en el escritorio, y si sus controles se ven ahora.
+    @State private var stage = false
+    @State private var stageShown = true
+    /// Cambia con cada toque en la pantalla completa, para volver a contar hasta esconder.
+    @State private var stagePoke = 0
     /// Lo que se tocó en el corazón, mientras el servicio lo confirma.
 
     private var fg: Color { light ? Color(white: 0.08) : .white }
@@ -26,8 +31,10 @@ struct PlayerView: View {
     var body: some View {
         let state = store.state
         GeometryReader { geometry in
-            // de lado, o en una pantalla ancha (iPad): dos columnas
-            if geometry.size.width > geometry.size.height || geometry.size.width >= 700 {
+            if stage {
+                stageView(state, size: geometry.size)
+            } else if geometry.size.width > geometry.size.height || geometry.size.width >= 700 {
+                // de lado, o en una pantalla ancha (iPad): dos columnas
                 landscape(state, size: geometry.size)
             } else {
                 portrait(state)
@@ -139,10 +146,93 @@ struct PlayerView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            Button {
+                stagePoke += 1
+                withAnimation(.easeInOut(duration: 0.3)) { stage = true }
+            } label: {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Pantalla completa")
             menu(state)
         }
         .foregroundStyle(fg)
         .contentShape(Rectangle())
+    }
+
+    /// Pantalla completa, como en el escritorio: la portada en el centro sobre el fondo
+    /// desenfocado, la onda de la música a lo ancho del borde de abajo y los controles, que se
+    /// esconden solos. Un toque los vuelve a mostrar.
+    private func stageView(_ state: PlaybackState, size: CGSize) -> some View {
+        let cover = max(120, min(size.width * 0.36, size.height * 0.5))
+        return ZStack {
+            VStack(spacing: 10) {
+                Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
+                    .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
+                    .padding(.bottom, 6)
+                if let track = state.track {
+                    Text(track.title)
+                        .font(.title2.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                    Text(track.artists)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 32)
+            .offset(y: -size.height * 0.05)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // la onda llega al borde de abajo, de lado a lado, y se ve más sin controles
+            VStack {
+                Spacer()
+                VisualizerView(color: fg)
+                    .frame(height: size.height * 0.18)
+                    .opacity(stageShown ? 0.5 : 0.9)
+            }
+            .ignoresSafeArea(edges: .bottom)
+            VStack(spacing: 8) {
+                Spacer()
+                seek(state)
+                controls(state)
+            }
+            .frame(maxWidth: 620)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+            .opacity(stageShown ? 1 : 0)
+            .allowsHitTesting(stageShown)
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) { stage = false }
+                    } label: {
+                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            .font(.title3.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("Salir de pantalla completa")
+                }
+                Spacer()
+            }
+            .padding(12)
+            .opacity(stageShown ? 1 : 0)
+            .allowsHitTesting(stageShown)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { stagePoke += 1 }
+        .task(id: stagePoke) {
+            withAnimation(.easeOut(duration: 0.25)) { stageShown = true }
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.9)) { stageShown = false }
+            }
+        }
+        .statusBarHidden(true)
+        .persistentSystemOverlays(.hidden)
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
     }
 
     private func menu(_ state: PlaybackState) -> some View {
