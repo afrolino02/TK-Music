@@ -87,5 +87,16 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+        <!-- el protector de pantalla de la TV con el visual y la letra -->
+        <service
+            android:name=".TKMusicDream"
+            android:exported="true"
+            android:label="TK-Music"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

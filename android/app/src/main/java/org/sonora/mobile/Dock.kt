@@ -147,7 +147,7 @@ object Dock {
 }
 
 /** Lo mínimo que Compose necesita para vivir fuera de una pantalla de la app. */
-private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner {
+internal class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner {
     private val registry = LifecycleRegistry(this)
     private val saved = SavedStateRegistryController.create(this)
     override val lifecycle: Lifecycle get() = registry

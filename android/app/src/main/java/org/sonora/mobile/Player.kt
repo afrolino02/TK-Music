@@ -291,6 +291,9 @@ fun PlayerScreen(onClose: () -> Unit) {
             val twoColumns = wide || configuration.screenWidthDp > configuration.screenHeightDp
             Box(Modifier.fillMaxSize()) {
                 Backdrop(track.cover, tint)
+                if (Store.visualBehind && !stage) {
+                    BehindVisual(tint.colors.getOrNull(0) ?: content, tint.colors.getOrNull(1) ?: tint.colors.getOrNull(0) ?: content)
+                }
                 if (stage) {
                     Stage(
                         state,
@@ -429,11 +432,29 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Co
             tween(if (shown) 450 else 900, easing = FastOutSlowInEasing),
             label = "lift",
         )
-        StageWave(
-            glow,
-            depth,
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(maxHeight * if (landscape) 0.3f else 0.22f),
-        )
+        // el visual elegido en Ajustes; Ondas es la onda de siempre
+        val spectrum = rememberSpectrum()
+        val style = Store.visualStyle
+        val started = remember { SystemClock.uptimeMillis() }
+        spectrum.tick
+        val (waveGlow, waveDepth) = visualColors(glow, depth, (SystemClock.uptimeMillis() - started) / 1000f)
+        if (style == VisualStyle.ONDAS) {
+            StageWave(
+                waveGlow,
+                waveDepth,
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(maxHeight * if (landscape) 0.3f else 0.22f),
+            )
+        } else {
+            StageVisual(
+                style,
+                glow,
+                depth,
+                spectrum,
+                focus = (maxWidth / 2 + aside) to (maxHeight / 2 - maxHeight * 0.06f + lift - 48.dp),
+                cover = cover,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Column(
             Modifier
                 .align(Alignment.Center)
@@ -443,7 +464,9 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Co
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Cover(state.coverLarge ?: track.cover, cover, under = track.cover)
+            Box(Modifier.graphicsLayer { pulseScale(style, spectrum).let { scaleX = it; scaleY = it } }) {
+                Cover(state.coverLarge ?: track.cover, cover, under = track.cover)
+            }
             Spacer(Modifier.size(4.dp))
             Text(
                 track.title,
@@ -1450,6 +1473,28 @@ private fun Ambient(colors: List<Color>) {
                 ),
                 radius = radius,
                 center = center,
+            )
+        }
+    }
+}
+
+/** El visual elegido, tenue, detrás del reproductor (Ajustes → Visual detrás del reproductor). */
+@Composable
+private fun BehindVisual(glow: Color, depth: Color) {
+    val spectrum = rememberSpectrum()
+    val style = Store.visualStyle
+    BoxWithConstraints(Modifier.fillMaxSize().graphicsLayer { alpha = 0.4f }) {
+        if (style == VisualStyle.ONDAS) {
+            StageWave(glow, depth, Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(maxHeight * 0.3f))
+        } else {
+            StageVisual(
+                style,
+                glow,
+                depth,
+                spectrum,
+                focus = maxWidth / 2 to maxHeight * 0.4f,
+                cover = minOf(maxWidth, maxHeight) * 0.6f,
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }

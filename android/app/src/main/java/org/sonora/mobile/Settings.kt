@@ -281,6 +281,7 @@ private fun LookSection() {
             Store.ambient,
         ) { Store.changeAmbient(it) }
         LyricsLook()
+        VisualsLook()
         Text("Visualizador", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             VisualizerStyle.entries.forEach { style ->
@@ -308,6 +309,28 @@ private fun <T> Chips(title: String, options: List<T>, chosen: T, label: (T) -> 
             )
         }
     }
+}
+
+/** Los visuales de la pantalla completa: el estilo, el color y dónde más aparecen. */
+@Composable
+private fun VisualsLook() {
+    Chips("Visual de la pantalla completa", VisualStyle.entries, Store.visualStyle, { it.label }) { Store.chooseVisualStyle(it) }
+    Chips("Color de los visuales", VisualColor.entries, Store.visualColor, { it.label }) { Store.chooseVisualColor(it) }
+    LookSwitch(
+        "Movimiento suave",
+        "Los visuales se mueven más lento y sin saltos fuertes, para quien se maree o quiera ahorrar batería.",
+        Store.visualCalm,
+    ) { Store.changeVisualCalm(it) }
+    LookSwitch(
+        "Visual detrás del reproductor",
+        "El visual elegido, tenue, detrás de la portada y los controles.",
+        Store.visualBehind,
+    ) { Store.changeVisualBehind(it) }
+    LookSwitch(
+        "Visual en la barra de abajo",
+        "Una franja que se mueve con la música en el mini reproductor.",
+        Store.visualInBar,
+    ) { Store.changeVisualInBar(it) }
 }
 
 /** Cómo se ve la letra: el estilo, el fondo, el tamaño, la alineación y dónde aparece. */

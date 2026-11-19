@@ -364,6 +364,11 @@ object Store : EngineListener {
         lyricsOnStage = preferences.getBoolean("lyrics.stage", false)
         lyricsInBar = preferences.getBoolean("lyrics.bar", true)
         dockEnabled = preferences.getBoolean("dock.enabled", false)
+        visualStyle = runCatching { VisualStyle.valueOf(preferences.getString("visual.style", "")!!) }.getOrDefault(VisualStyle.ONDAS)
+        visualColor = runCatching { VisualColor.valueOf(preferences.getString("visual.color", "")!!) }.getOrDefault(VisualColor.PORTADA)
+        visualCalm = preferences.getBoolean("visual.calm", false)
+        visualBehind = preferences.getBoolean("visual.behind", false)
+        visualInBar = preferences.getBoolean("visual.bar", false)
         offlineMode = preferences.getBoolean("offline.mode", false)
         adaptive = preferences.getBoolean("look.adaptive", false)
         ambient = preferences.getBoolean("look.ambient", true)
@@ -568,6 +573,49 @@ object Store : EngineListener {
     fun changeLyricsOnStage(on: Boolean) {
         lyricsOnStage = on
         preferences.edit().putBoolean("lyrics.stage", on).apply()
+    }
+
+    // ── Visuales ──────────────────────────────────────────────────────────────────────────
+
+    /** El visual de la pantalla completa. */
+    var visualStyle by mutableStateOf(VisualStyle.ONDAS)
+        private set
+    /** Los colores de los visuales: los de la portada o un arcoíris. */
+    var visualColor by mutableStateOf(VisualColor.PORTADA)
+        private set
+    /** Los visuales más lentos y sin saltos fuertes. */
+    var visualCalm by mutableStateOf(false)
+        private set
+    /** El visual, tenue, detrás del reproductor. */
+    var visualBehind by mutableStateOf(false)
+        private set
+    /** Una franja del visual en la barra de abajo. */
+    var visualInBar by mutableStateOf(false)
+        private set
+
+    fun chooseVisualStyle(style: VisualStyle) {
+        visualStyle = style
+        preferences.edit().putString("visual.style", style.name).apply()
+    }
+
+    fun chooseVisualColor(color: VisualColor) {
+        visualColor = color
+        preferences.edit().putString("visual.color", color.name).apply()
+    }
+
+    fun changeVisualCalm(on: Boolean) {
+        visualCalm = on
+        preferences.edit().putBoolean("visual.calm", on).apply()
+    }
+
+    fun changeVisualBehind(on: Boolean) {
+        visualBehind = on
+        preferences.edit().putBoolean("visual.behind", on).apply()
+    }
+
+    fun changeVisualInBar(on: Boolean) {
+        visualInBar = on
+        preferences.edit().putBoolean("visual.bar", on).apply()
     }
 
     /** El dock flotante sobre otras apps (apagado hasta que se active). */

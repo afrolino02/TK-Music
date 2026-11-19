@@ -267,6 +267,11 @@ private fun MiniPlayer(track: TrackItem, state: PlaybackState, onOpen: () -> Uni
     Surface(tonalElevation = 3.dp) {
         Column(Modifier.fillMaxWidth().focusRing(RoundedCornerShape(0.dp)).clickable(onClick = onOpen)) {
             LinearProgressIndicator(progress = { progress(state) }, modifier = Modifier.fillMaxWidth().height(2.dp))
+            Box {
+            // una franja que se mueve con la música, detrás (Ajustes → Visual en la barra de abajo)
+            if (Store.visualInBar && state.status == Status.PLAYING) {
+                BarVisual(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary, rememberSpectrum(), Modifier.matchParentSize())
+            }
             Row(
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -285,6 +290,7 @@ private fun MiniPlayer(track: TrackItem, state: PlaybackState, onOpen: () -> Uni
                 IconButton(onClick = { Store.engine.next() }, enabled = state.index + 1u < state.queueLength) {
                     Icon(Icons.Filled.SkipNext, "Siguiente")
                 }
+            }
             }
         }
     }
