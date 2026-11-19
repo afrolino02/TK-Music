@@ -34,16 +34,20 @@ impl SettingsView {
         if !self.settings.read(cx).lyrics_enabled() {
             return groups;
         }
-        groups.push(
-            Group::new("settings-group-display", "icons/mic-vocal.svg").rows([
-                Slot::LyricStyle,
-                Slot::Karaoke,
-                Slot::BlurLyrics,
-                Slot::Romanized,
-                Slot::PanelLyricsSize,
-                Slot::FullscreenLyricsSize,
-            ]),
-        );
+        let mut display = vec![
+            Slot::LyricStyle,
+            Slot::Karaoke,
+            Slot::BlurLyrics,
+            Slot::Romanized,
+            Slot::PanelLyricsSize,
+            Slot::FullscreenLyricsSize,
+        ];
+        // The dock floats over other apps in a window of its own, which only Windows and macOS
+        // keep above everything without the window manager's say.
+        if cfg!(any(target_os = "windows", target_os = "macos")) {
+            display.push(Slot::DesktopDock);
+        }
+        groups.push(Group::new("settings-group-display", "icons/mic-vocal.svg").rows(display));
         groups.push(
             Group::new("settings-group-sources", "icons/list-music.svg")
                 .rows([Slot::LyricsSources, Slot::LyricsForLocal]),
@@ -396,6 +400,21 @@ impl SettingsView {
         self.row(
             t!("settings-lyric-style"),
             picker.name(t!("settings-lyric-style")).into_any_element(),
+        )
+    }
+
+    pub(super) fn desktop_dock_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on = self.settings.read(cx).desktop_dock();
+
+        self.row(
+            t!("settings-desktop-dock"),
+            Switch::new("desktop-dock", on)
+                .name(t!("settings-desktop-dock"))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_desktop_dock(!on, cx));
+                }))
+                .into_any_element(),
         )
     }
 

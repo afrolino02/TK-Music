@@ -5,8 +5,8 @@ mod actions;
 mod app_icon;
 mod assets;
 mod console;
+mod desktop;
 mod dock;
-mod edge;
 #[cfg(target_os = "macos")]
 mod gestures;
 mod http;
@@ -198,7 +198,7 @@ fn main() -> ExitCode {
         memory::watch(cx);
 
         open_window(cx);
-        edge::install(cx);
+        desktop::install(cx);
         let session = Sonora::global(cx).session.clone();
         session.update(cx, |session, cx| session.restore(cx));
 
@@ -297,7 +297,7 @@ fn show_window(cx: &mut App) {
     let main = cx
         .windows()
         .into_iter()
-        .find(|window| !edge::owns(*window, cx));
+        .find(|window| !desktop::owns(*window, cx));
     match main {
         Some(window) => {
             window
@@ -307,7 +307,7 @@ fn show_window(cx: &mut App) {
         None => {
             dock::show(true);
             open_window(cx);
-            edge::sync(cx);
+            desktop::sync(cx);
         }
     }
     cx.activate(true);

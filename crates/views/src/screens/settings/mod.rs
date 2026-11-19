@@ -84,6 +84,7 @@ enum Slot {
     VisualizerRainbow,
     VisualizerCalm,
     DesktopEdge,
+    DesktopDock,
     PlayerBarLayout,
     PlayerBarTransparent,
     FullscreenControlsAutohide,
@@ -762,6 +763,10 @@ impl SettingsView {
                 t!("settings-desktop-edge"),
                 t!("settings-desktop-edge-detail"),
             ),
+            Slot::DesktopDock => (
+                t!("settings-desktop-dock"),
+                t!("settings-desktop-dock-detail"),
+            ),
             Slot::Icons => (t!("settings-icons"), t!("settings-icons-detail")),
             Slot::Opacity => (t!("settings-opacity"), t!("settings-opacity-detail")),
             Slot::WindowBlur => (
@@ -999,6 +1004,7 @@ impl SettingsView {
             Slot::VisualizerRainbow => self.visualizer_rainbow_row(cx),
             Slot::VisualizerCalm => self.visualizer_calm_row(cx),
             Slot::DesktopEdge => self.desktop_edge_row(cx),
+            Slot::DesktopDock => self.desktop_dock_row(cx),
             Slot::Opacity => self.opacity_row(cx),
             Slot::WindowBlur => self.blur_window_row(cx),
             Slot::Blur => self.blur_row(cx),

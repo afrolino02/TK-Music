@@ -1,5 +1,6 @@
 pub(crate) mod edge;
 pub(crate) mod fullscreen;
+pub(crate) mod minibar;
 pub(crate) mod workspace;
 
 use gpui::{AnyView, App, KeyContext};

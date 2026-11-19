@@ -612,6 +612,9 @@ struct Appearance {
     /// Whether the border scene also glows round the edge of the whole desktop while a track
     /// plays.
     desktop_edge: bool,
+    /// Whether a little bar with the line playing floats at the top of the desktop while
+    /// TK-Music is in the background.
+    desktop_dock: bool,
     player_bar_layout: String,
     player_bar_transparent: bool,
     icons: String,
@@ -922,6 +925,7 @@ impl Default for Appearance {
             visualizer_rainbow: false,
             visualizer_calm: false,
             desktop_edge: false,
+            desktop_dock: false,
             player_bar_layout: PlayerBarLayout::default().id().to_owned(),
             player_bar_transparent: true,
             icons: icons::BASE.to_owned(),
@@ -1509,6 +1513,12 @@ impl AppSettings {
     /// Whether a glowing line runs round the edge of the whole desktop while a track plays.
     pub fn desktop_edge(&self) -> bool {
         self.values.appearance.desktop_edge
+    }
+
+    /// Whether a little bar with the line playing floats at the top of the desktop while
+    /// TK-Music is in the background.
+    pub fn desktop_dock(&self) -> bool {
+        self.values.appearance.desktop_dock
     }
 
     pub fn fullscreen_controls_autohide(&self) -> FullscreenControlsAutohide {
@@ -2390,6 +2400,11 @@ impl AppSettings {
 
     pub fn set_desktop_edge(&mut self, on: bool, cx: &mut Context<Self>) {
         self.values.appearance.desktop_edge = on;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_desktop_dock(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.values.appearance.desktop_dock = on;
         self.schedule_save(cx);
     }
 

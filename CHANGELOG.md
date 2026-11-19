@@ -24,6 +24,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 - Protector de pantalla para Android TV con el visual, la portada y la letra.
 - Visuales en el PC (Windows y Mac): Barras espejo, Anillo, Partículas, Aurora, Vinilo, Pulso, Borde, Electricidad y Láseres en la pantalla completa, junto a la Onda y las Barras de antes; colores arcoíris y movimiento suave (Ajustes → Reproduciendo ahora → Visualizador).
 - Borde sobre el escritorio (Windows y Mac): mientras suena una canción, una línea que sigue la música brilla alrededor de toda la pantalla, encima de todas las apps y sin estorbar los clics. Va apagado; se activa en Ajustes.
+- Dock en el escritorio (Windows y Mac): mientras TK-Music está en segundo plano, una barra chica arriba de la pantalla muestra la frase que suena; al hacer clic se abre con la portada, los controles y más letra. Va apagado; se activa en Ajustes → Letra.
 - Dock flotante (Android): una barra chica encima de las otras apps con la frase que suena y los controles al tocarla. Va apagado; se activa en Ajustes.
 - TK-Music para Mac: un .dmg para Mac con chip Apple (M1 en adelante) o Intel, con macOS 11 o más nuevo. Se instala arrastrándolo a Aplicaciones y se actualiza sola, como en Windows.
 
