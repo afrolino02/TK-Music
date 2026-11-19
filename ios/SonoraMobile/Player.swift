@@ -28,6 +28,8 @@ struct PlayerView: View {
     @State private var stageGlow: Color?
     /// El segundo color de la portada, para la onda de atrás.
     @State private var stageDepth: Color?
+    /// La música como números, para los visuales.
+    @State private var spectrum = Spectrum()
     /// Lo que se tocó en el corazón, mientras el servicio lo confirma.
 
     private var fg: Color { light ? Color(white: 0.08) : .white }
@@ -44,7 +46,34 @@ struct PlayerView: View {
                 portrait(state)
             }
         }
-        .background { Backdrop(url: state.track?.cover, light: $light) }
+        .background {
+            ZStack {
+                Backdrop(url: state.track?.cover, light: $light)
+                // el visual elegido, tenue, detrás del reproductor
+                if store.visualBehind && !stage {
+                    GeometryReader { geometry in
+                        if store.visualStyle == .ondas {
+                            VStack {
+                                Spacer()
+                                StageWave(color: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg).frame(height: geometry.size.height * 0.3)
+                            }
+                        } else {
+                            StageVisual(
+                                style: store.visualStyle,
+                                glow: stageGlow ?? fg,
+                                depth: stageDepth ?? stageGlow ?? fg,
+                                spectrum: spectrum,
+                                focus: CGPoint(x: geometry.size.width / 2, y: geometry.size.height * 0.4),
+                                cover: min(geometry.size.width, geometry.size.height) * 0.6
+                            )
+                            .task { await spectrum.listen(store.engine) }
+                        }
+                    }
+                    .opacity(0.4)
+                    .ignoresSafeArea()
+                }
+            }
+        }
         // los colores de la portada, para resaltar la letra y para las ondas
         .environment(\.lyricAccent, LyricAccent(glow: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg))
         .task(id: state.track?.cover) {
@@ -191,14 +220,33 @@ struct PlayerView: View {
         let lift: CGFloat = (stageShown || sung) && !landscape ? -size.height * 0.1 : 0
         return ZStack {
             // de borde a borde, también debajo de la isla y de la barra de inicio
-            VStack {
-                Spacer()
-                StageWave(color: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg)
-                    .frame(height: size.height * (landscape ? 0.3 : 0.22))
+            // el visual elegido en Ajustes; Ondas es la onda de siempre
+            if store.visualStyle == .ondas {
+                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    let (glow, depth) = visualColors(store.visualColor, glow: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg, seconds: timeline.date.timeIntervalSinceReferenceDate)
+                    VStack {
+                        Spacer()
+                        StageWave(color: glow, depth: depth)
+                            .frame(height: size.height * (landscape ? 0.3 : 0.22))
+                    }
+                }
+                .ignoresSafeArea()
+            } else {
+                StageVisual(
+                    style: store.visualStyle,
+                    glow: stageGlow ?? fg,
+                    depth: stageDepth ?? stageGlow ?? fg,
+                    spectrum: spectrum,
+                    focus: CGPoint(x: size.width / 2 + aside, y: size.height / 2 - size.height * 0.06 + lift - 48),
+                    cover: cover
+                )
+                .task { await spectrum.listen(store.engine) }
             }
-            .ignoresSafeArea()
             VStack(spacing: 8) {
-                Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
+                TimelineView(.animation(paused: store.visualStyle != .pulso)) { _ in
+                    Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
+                        .scaleEffect(pulseScale(store.visualStyle, spectrum, calm: store.visualCalm))
+                }
                     .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
                     .padding(.bottom, 4)
                 if let track = state.track {

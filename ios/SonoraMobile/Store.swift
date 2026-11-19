@@ -191,6 +191,26 @@ final class Store: ObservableObject {
     @Published var lyricsInBar = UserDefaults.standard.object(forKey: "lyrics.bar") as? Bool ?? true {
         didSet { UserDefaults.standard.set(lyricsInBar, forKey: "lyrics.bar") }
     }
+    /// El visual de la pantalla completa.
+    @Published var visualStyle = VisualStyle(rawValue: UserDefaults.standard.string(forKey: "visual.style") ?? "") ?? .ondas {
+        didSet { UserDefaults.standard.set(visualStyle.rawValue, forKey: "visual.style") }
+    }
+    /// Los colores de los visuales: los de la portada o un arcoíris.
+    @Published var visualColor = VisualColor(rawValue: UserDefaults.standard.string(forKey: "visual.color") ?? "") ?? .portada {
+        didSet { UserDefaults.standard.set(visualColor.rawValue, forKey: "visual.color") }
+    }
+    /// Los visuales más lentos y sin saltos fuertes.
+    @Published var visualCalm = UserDefaults.standard.bool(forKey: "visual.calm") {
+        didSet { UserDefaults.standard.set(visualCalm, forKey: "visual.calm") }
+    }
+    /// El visual, tenue, detrás del reproductor.
+    @Published var visualBehind = UserDefaults.standard.bool(forKey: "visual.behind") {
+        didSet { UserDefaults.standard.set(visualBehind, forKey: "visual.behind") }
+    }
+    /// Una franja del visual en la barra de abajo.
+    @Published var visualInBar = UserDefaults.standard.bool(forKey: "visual.bar") {
+        didSet { UserDefaults.standard.set(visualInBar, forKey: "visual.bar") }
+    }
     /// La frase que suena en la isla dinámica y la pantalla bloqueada (apagado hasta que se active).
     @Published var liveLyrics = UserDefaults.standard.bool(forKey: "lyrics.live") {
         didSet { UserDefaults.standard.set(liveLyrics, forKey: "lyrics.live") }
