@@ -168,6 +168,57 @@ impl FullscreenControlsAutohide {
     }
 }
 
+/// How synced lyrics are drawn. `Focus` is the sheet of every line with the sung one sharp;
+/// the others put the line being sung on its own with an animation of their own.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LyricStyle {
+    #[default]
+    Focus,
+    Karaoke,
+    Cinematic,
+    WordByWord,
+    Typewriter,
+    Chat,
+    Paper,
+}
+
+impl LyricStyle {
+    pub const ALL: [Self; 7] = [
+        Self::Focus,
+        Self::Karaoke,
+        Self::Cinematic,
+        Self::WordByWord,
+        Self::Typewriter,
+        Self::Chat,
+        Self::Paper,
+    ];
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Focus => "focus",
+            Self::Karaoke => "karaoke",
+            Self::Cinematic => "cinematic",
+            Self::WordByWord => "word-by-word",
+            Self::Typewriter => "typewriter",
+            Self::Chat => "chat",
+            Self::Paper => "paper",
+        }
+    }
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Focus => "settings-lyric-style-focus",
+            Self::Karaoke => "settings-lyric-style-karaoke",
+            Self::Cinematic => "settings-lyric-style-cinematic",
+            Self::WordByWord => "settings-lyric-style-word-by-word",
+            Self::Typewriter => "settings-lyric-style-typewriter",
+            Self::Chat => "settings-lyric-style-chat",
+            Self::Paper => "settings-lyric-style-paper",
+        }
+    }
+}
+
 /// Which panel the right sidebar shows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -467,6 +518,7 @@ struct Values {
     /// come from. The source order then only settles lyrics of the same kind.
     lyrics_word_synced_first: bool,
     karaoke_lyrics: bool,
+    lyric_style: LyricStyle,
     blur_lyrics: bool,
     romanized_lyrics: bool,
     panel_lyrics_scale: f32,
@@ -678,6 +730,7 @@ impl Default for Values {
                 .collect(),
             lyrics_word_synced_first: false,
             karaoke_lyrics: true,
+            lyric_style: LyricStyle::Focus,
             blur_lyrics: true,
             romanized_lyrics: true,
             panel_lyrics_scale: DEFAULT_LYRICS_SCALE,
@@ -1194,6 +1247,10 @@ impl AppSettings {
 
     pub fn karaoke_lyrics(&self) -> bool {
         self.values.karaoke_lyrics
+    }
+
+    pub fn lyric_style(&self) -> LyricStyle {
+        self.values.lyric_style
     }
 
     pub fn blur_lyrics(&self) -> bool {
@@ -1801,6 +1858,12 @@ impl AppSettings {
     pub fn set_karaoke_lyrics(&mut self, karaoke: bool, cx: &mut Context<Self>) {
         self.values.karaoke_lyrics = karaoke;
         self.schedule_save(cx);
+    }
+
+    pub fn set_lyric_style(&mut self, style: LyricStyle, cx: &mut Context<Self>) {
+        self.values.lyric_style = style;
+        self.schedule_save(cx);
+        cx.notify();
     }
 
     pub fn set_blur_lyrics(&mut self, blur: bool, cx: &mut Context<Self>) {

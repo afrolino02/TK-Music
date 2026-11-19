@@ -86,6 +86,7 @@ enum Slot {
     FullscreenControlsAutohide,
     OsFullscreen,
     Lyrics,
+    LyricStyle,
     Karaoke,
     BlurLyrics,
     Romanized,
@@ -881,6 +882,10 @@ impl SettingsView {
                 t!("settings-lyrics-word-synced-first-detail"),
             ),
             Slot::Lyrics => (t!("settings-lyrics"), t!("settings-lyrics-detail")),
+            Slot::LyricStyle => (
+                t!("settings-lyric-style"),
+                t!("settings-lyric-style-detail"),
+            ),
             Slot::Karaoke => (
                 t!("settings-karaoke-lyrics"),
                 t!("settings-karaoke-lyrics-detail"),
@@ -1029,6 +1034,7 @@ impl SettingsView {
             Slot::LyricsPriority => self.lyrics_priority(cx),
             Slot::WordSyncedFirst => self.word_synced_first_row(cx),
             Slot::Lyrics => self.lyrics_row(cx),
+            Slot::LyricStyle => self.lyric_style_row(cx),
             Slot::Karaoke => self.karaoke_lyrics_row(cx),
             Slot::Romanized => self.romanized_lyrics_row(cx),
             Slot::LyricsForLocal => self.lyrics_for_local_files_row(cx),

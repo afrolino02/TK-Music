@@ -1,6 +1,7 @@
 mod aside;
 mod downloads;
 mod jam;
+mod lyric_styles;
 mod members;
 mod notice;
 mod output_picker;

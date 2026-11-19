@@ -16,9 +16,9 @@ use i18n::t;
 use music::{Contributor, Shape, Track, Voice};
 use router::{Destination, LibraryTab, Link as _};
 use state::{
-    AppSettings, Lyrics, LyricsState, Network, Playback, PlaybackState, Queue, QueuePosition,
-    QueueSections as Sections, QueueSlot as Slot, QueueView, RomanizationScripts, Shelf, SideTab,
-    Sonora, Whence,
+    AppSettings, LyricStyle, Lyrics, LyricsState, Network, Playback, PlaybackState, Queue,
+    QueuePosition, QueueSections as Sections, QueueSlot as Slot, QueueView, RomanizationScripts,
+    Shelf, SideTab, Sonora, Whence,
 };
 use ui::{
     ActiveTheme as _, Avatar, Button, Card, DraggedPin, Edge, Glowing as _, Initials, Motion,
@@ -986,6 +986,63 @@ impl Aside {
             true => Chrome::bottom(cx),
             false => Pixels::ZERO,
         }
+    }
+
+    /// The lyrics in the style chosen in settings: the sheet for Focus, or the line being sung
+    /// on its own for the others, when the lyrics are synced.
+    fn lyrics_view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let style = self.settings.read(cx).lyric_style();
+        let lyrics = self.lyrics.read(cx);
+        let lines = match (lyrics.state(), lyrics.current().map(|hit| &hit.lyrics)) {
+            (LyricsState::Ready, Some(music::Lyrics::Synced { lines }))
+                if style != LyricStyle::Focus =>
+            {
+                lines.clone()
+            }
+            _ => return self.verses(window, cx).into_any_element(),
+        };
+        let theme = *cx.theme();
+        let playback = self.playback.read(cx);
+        let (position, singing) = match playback.steered(cx) {
+            Some(remote) => (remote.state.live_position(), remote.state.playing),
+            None => (
+                playback.live_position(),
+                matches!(playback.state(), PlaybackState::Playing),
+            ),
+        };
+        let title = playback
+            .track()
+            .map(|track| SharedString::from(track.name.clone()))
+            .unwrap_or_default();
+        let frame_scale = match self.titled {
+            true => 1.,
+            false => lyrics_frame_scale(window.viewport_size()),
+        };
+        let scale = match self.titled {
+            true => self.settings.read(cx).panel_lyrics_scale(),
+            false => self.settings.read(cx).fullscreen_lyrics_scale(),
+        } * frame_scale;
+        let (verse, _) = verse_sizes(self.titled, scale, &theme);
+        if singing {
+            window.request_animation_frame();
+        }
+        let frame = super::lyric_styles::Frame {
+            lines: &lines,
+            position,
+            size: active_verse_size(verse),
+            theme,
+            title,
+        };
+        div()
+            .id("lyric-style")
+            .relative()
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .overflow_hidden()
+            .child(super::lyric_styles::render(style, &frame))
+            .into_any_element()
     }
 
     fn verses(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -2073,7 +2130,8 @@ impl Render for Aside {
                         )
                     })
                     .when(self.tab == SideTab::Lyrics, |this| {
-                        this.child(self.verses(window, cx)).child(self.witness())
+                        this.child(self.lyrics_view(window, cx))
+                            .child(self.witness())
                     })
                     .when(self.tab == SideTab::Queue && empty, |this| {
                         this.child(

@@ -6,7 +6,7 @@ use gpui::{
 use i18n::t;
 use music::WritingSystem;
 use router::{Destination, SettingsPage, navigate};
-use state::{AppSettings, LYRICS_SOURCES};
+use state::{AppSettings, LYRICS_SOURCES, LyricStyle};
 use ui::{
     ActiveTheme as _, Button, Ghost, MAX_LYRICS_SCALE, MIN_LYRICS_SCALE, MenuItem, Picker, Switch,
     drop_gap, drop_marker, grip, tabular,
@@ -14,6 +14,9 @@ use ui::{
 
 use super::rows::drill;
 use super::{Group, SettingsView, Slot};
+
+/// The id of the lyric style picker's popover.
+const LYRIC_STYLE: &str = "lyric-style";
 
 /// A lyrics source being dragged within the priority list. It draws as a chip under the cursor
 /// and changes the saved order only when dropped.
@@ -33,6 +36,7 @@ impl SettingsView {
         }
         groups.push(
             Group::new("settings-group-display", "icons/mic-vocal.svg").rows([
+                Slot::LyricStyle,
                 Slot::Karaoke,
                 Slot::BlurLyrics,
                 Slot::Romanized,
@@ -369,6 +373,30 @@ impl SettingsView {
             )
             .when_some(edge, |entry, edge| entry.child(drop_marker(edge, cx)))
             .into_any_element()
+    }
+
+    pub(super) fn lyric_style_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let chosen = self.settings.read(cx).lyric_style();
+        let picker = Picker::new(
+            LYRIC_STYLE,
+            &self.popovers,
+            i18n::lookup(chosen.key(), None),
+        )
+        .width(Picker::NARROW)
+        .items(LyricStyle::ALL.map(|style| {
+            MenuItem::new(style.id(), i18n::lookup(style.key(), None))
+                .selected(style == chosen)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_lyric_style(style, cx));
+                    cx.notify();
+                }))
+        }));
+
+        self.row(
+            t!("settings-lyric-style"),
+            picker.name(t!("settings-lyric-style")).into_any_element(),
+        )
     }
 
     pub(super) fn karaoke_lyrics_row(&self, cx: &mut Context<Self>) -> AnyElement {
