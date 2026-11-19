@@ -29,6 +29,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
+        # la letra a mano del estilo Papel (Caveat, licencia OFL)
+        UIAppFonts: [Caveat.ttf]
         # La carpeta de Sonora aparece en la app Archivos, para copiar ahí la música.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true

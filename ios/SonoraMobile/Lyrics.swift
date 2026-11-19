@@ -7,8 +7,12 @@ struct LyricsPanel: View {
     var body: some View {
         let state = store.state
         if let track = state.track, let slug = state.provider {
-            Loader(key: "\(slug):\(track.id)", load: { try $0.lyricsFor(slug: slug, track: track) }) { result in
-                LyricsBody(result: result)
+            ZStack(alignment: .topLeading) {
+                LyricsBackdrop()
+                Loader(key: "\(slug):\(track.id)", load: { try $0.lyricsFor(slug: slug, track: track) }) { result in
+                    LyricsBody(result: result)
+                }
+                LyricStyleMenu().padding(8)
             }
             // mientras se ven las letras, la pantalla no se apaga (karaoke, proyector)
             .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
@@ -41,7 +45,7 @@ struct LyricsBody: View {
     var body: some View {
         if let result, !result.lines.isEmpty {
             if result.synced {
-                SyncedLyrics(result: result)
+                StyledLyrics(result: result)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -85,8 +89,7 @@ struct SyncedLyrics: View {
     let result: LyricsResult
 
     var body: some View {
-        let worded = result.lines.contains { !$0.words.isEmpty }
-        TimelineView(.periodic(from: .now, by: worded ? 0.05 : 0.25)) { context in
+        TimelineView(.periodic(from: .now, by: 0.05)) { context in
             sheet(position: store.smoothPosition(at: context.date))
         }
     }
@@ -96,7 +99,7 @@ struct SyncedLyrics: View {
         return GeometryReader { geometry in
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                    LazyVStack(alignment: store.lyricStart ? .leading : .center, spacing: 0) {
                         Color.clear.frame(height: geometry.size.height * 0.3)
                         lines(active: active, position: position)
                         Text("Letra: \(result.source)")
@@ -125,10 +128,13 @@ struct SyncedLyrics: View {
         ForEach(Array(result.lines.enumerated()), id: \.offset) { index, line in
             let distance: Int = active.map { abs(index - $0) } ?? 99
             let current = index == active
+            let next = result.lines.indices.contains(index + 1) ? result.lines[index + 1] : nil
             LyricRow(
                 text: line.text,
                 romanized: store.showRomanized ? line.romanized : nil,
-                words: current ? line.words : [],
+                words: current ? timedWords(line, next: next) : [],
+                scale: store.lyricSize,
+                start: store.lyricStart,
                 position: current ? position : 0,
                 current: current,
                 distance: distance
@@ -149,6 +155,8 @@ private struct LyricRow: View {
     let text: String
     let romanized: String?
     let words: [LyricWord]
+    let scale: Double
+    let start: Bool
     let position: UInt64
     let current: Bool
     let distance: Int
@@ -162,24 +170,46 @@ private struct LyricRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: start ? .leading : .center, spacing: 2) {
             styled
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 28 * scale, weight: .bold))
+                .multilineTextAlignment(start ? .leading : .center)
             // la pronunciación, más pequeña, debajo de la línea en otro sistema de escritura
             if let romanized {
                 Text(romanized)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 16 * scale, weight: .medium))
                     .opacity(0.75)
             }
         }
             .foregroundStyle(.primary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .scaleEffect(current ? 1 : 0.8, anchor: .leading)
+            .frame(maxWidth: .infinity, alignment: start ? .leading : .center)
+            .scaleEffect(current ? 1 : 0.8, anchor: start ? .leading : .center)
             .opacity(current ? 1 : (distance <= 1 ? 0.5 : 0.3))
             .blur(radius: current ? 0 : (distance <= 1 ? 1.5 : 3))
             .animation(.easeInOut(duration: 0.7), value: current)
             .animation(.easeInOut(duration: 0.7), value: distance)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
+    }
+}
+
+/// Lo que va detrás de la letra, según Ajustes (la portada desenfocada ya es el fondo del reproductor).
+private struct LyricsBackdrop: View {
+    @EnvironmentObject private var store: Store
+    @Environment(\.lyricAccent) private var accent
+
+    var body: some View {
+        switch store.lyricBackdrop {
+        case .portada:
+            Color.clear
+        case .color:
+            LinearGradient(colors: [accent.glow.opacity(0.55), accent.depth.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+        case .visual:
+            VStack {
+                Spacer()
+                StageWave(color: accent.glow, depth: accent.depth).frame(height: 160)
+            }
+        }
     }
 }

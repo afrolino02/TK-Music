@@ -45,6 +45,17 @@ struct PlayerView: View {
             }
         }
         .background { Backdrop(url: state.track?.cover, light: $light) }
+        // los colores de la portada, para resaltar la letra y para las ondas
+        .environment(\.lyricAccent, LyricAccent(glow: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg))
+        .task(id: state.track?.cover) {
+            guard let url = state.track?.cover else { return }
+            let image = await ImagePipeline.shared.image(url)
+            let colors = image?.vividColors ?? []
+            withAnimation(.easeInOut(duration: 0.8)) {
+                stageGlow = colors.first
+                stageDepth = colors.dropFirst().first
+            }
+        }
         .offset(y: drag)
         .foregroundStyle(fg)
         .environment(\.colorScheme, light ? .light : .dark)
@@ -201,6 +212,17 @@ struct PlayerView: View {
             .frame(maxWidth: cover + 64)
             .offset(x: aside, y: -size.height * 0.06 + lift)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // la frase que suena, encima de la onda; se aparta cuando aparecen los controles
+            if store.lyricsOnStage {
+                VStack {
+                    Spacer()
+                    StageLine(big: landscape)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, size.height * (landscape ? 0.16 : 0.2))
+                }
+                .opacity(stageShown ? 0 : 1)
+                .allowsHitTesting(false)
+            }
             Group {
                 if landscape {
                     // de lado: los controles a la derecha, a media altura, entrando desde el borde

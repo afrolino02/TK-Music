@@ -489,6 +489,37 @@ struct LookSection: View {
             Picker("Visualizador", selection: $store.visualizer) {
                 ForEach(VisualizerStyle.allCases) { Text($0.label).tag($0) }
             }
+            Picker("Estilo de la letra", selection: $store.lyricStyle) {
+                ForEach(LyricStyle.allCases) { Text($0.label).tag($0) }
+            }
+            Picker("Fondo de la letra", selection: $store.lyricBackdrop) {
+                ForEach(LyricBackdrop.allCases) { Text($0.label).tag($0) }
+            }
+            Picker("Tamaño de la letra", selection: $store.lyricSize) {
+                Text("Chica").tag(0.82)
+                Text("Normal").tag(1.0)
+                Text("Grande").tag(1.2)
+            }
+            Picker("Alineación de la letra", selection: $store.lyricStart) {
+                Text("Centro").tag(false)
+                Text("Izquierda").tag(true)
+            }
+            Picker("Resaltado", selection: $store.lyricWhite) {
+                Text("Color de la portada").tag(false)
+                Text("Blanco").tag(true)
+            }
+            Toggle(isOn: $store.lyricsOnStage) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Letra en pantalla completa")
+                    Text("La frase que suena aparece encima del visual.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Toggle(isOn: $store.lyricsInBar) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Letra en la barra de abajo")
+                    Text("El mini reproductor muestra la frase que suena en vez del artista.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }
@@ -568,10 +599,7 @@ struct PlayerBar: View {
                 Cover(url: track.cover, size: 40)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(track.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                    Text(state.remote ? "En la sesión · \(track.artists)" : track.artists)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    BarLine(fallback: state.remote ? "En la sesión · \(track.artists)" : track.artists)
                 }
                 Spacer(minLength: 8)
                 Button { store.engine.previous() } label: {

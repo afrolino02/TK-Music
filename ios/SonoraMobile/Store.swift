@@ -163,6 +163,34 @@ final class Store: ObservableObject {
     @Published var showRomanized = UserDefaults.standard.object(forKey: "lyrics.romanized") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showRomanized, forKey: "lyrics.romanized") }
     }
+    /// Cómo se anima la letra sincronizada.
+    @Published var lyricStyle = LyricStyle(rawValue: UserDefaults.standard.string(forKey: "lyrics.style") ?? "") ?? .enfoque {
+        didSet { UserDefaults.standard.set(lyricStyle.rawValue, forKey: "lyrics.style") }
+    }
+    /// Qué va detrás de la letra.
+    @Published var lyricBackdrop = LyricBackdrop(rawValue: UserDefaults.standard.string(forKey: "lyrics.backdrop") ?? "") ?? .portada {
+        didSet { UserDefaults.standard.set(lyricBackdrop.rawValue, forKey: "lyrics.backdrop") }
+    }
+    /// El tamaño de la letra: 0,82 chica, 1 normal, 1,2 grande.
+    @Published var lyricSize = UserDefaults.standard.object(forKey: "lyrics.size") as? Double ?? 1 {
+        didSet { UserDefaults.standard.set(lyricSize, forKey: "lyrics.size") }
+    }
+    /// La letra a la izquierda en vez de al centro.
+    @Published var lyricStart = UserDefaults.standard.bool(forKey: "lyrics.start") {
+        didSet { UserDefaults.standard.set(lyricStart, forKey: "lyrics.start") }
+    }
+    /// Resaltar en blanco en vez del color de la portada.
+    @Published var lyricWhite = UserDefaults.standard.bool(forKey: "lyrics.white") {
+        didSet { UserDefaults.standard.set(lyricWhite, forKey: "lyrics.white") }
+    }
+    /// La frase que suena encima de la pantalla completa.
+    @Published var lyricsOnStage = UserDefaults.standard.object(forKey: "lyrics.stage") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(lyricsOnStage, forKey: "lyrics.stage") }
+    }
+    /// La frase que suena en la barra de abajo, en vez del artista.
+    @Published var lyricsInBar = UserDefaults.standard.object(forKey: "lyrics.bar") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(lyricsInBar, forKey: "lyrics.bar") }
+    }
     /// El webhook del canal #tk-music del bot de Discord, o "" si no se configuró.
     @Published var discordWebhook = UserDefaults.standard.string(forKey: "discord.webhook") ?? "" {
         didSet { UserDefaults.standard.set(discordWebhook, forKey: "discord.webhook") }
