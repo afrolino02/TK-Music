@@ -18,7 +18,7 @@ use state::{AppSettings, Cover, FullscreenControlsAutohide, Playback, Queue, Sid
 use ui::{
     ActiveTheme as _, Artwork, Button, ExplicitBadge, Flight, InlineLink, InlineLinks, Motion,
     Motioned as _, Popup, Room, Scrollbar, Scrubber, ScrubberState, Springs, Sprung, TabBar,
-    Tails as _, Text, Visualizer, Zoom, clock, entering, snapped,
+    Tails as _, Text, Visualizer, VisualizerStyle, Zoom, clock, entering, snapped,
 };
 
 use crate::chrome::{Aside, PlayerBar, TitleBarOptions};
@@ -67,6 +67,10 @@ const SEEK_MAX: f32 = 420.;
 const CLOCK_SHORT: f32 = 3.4;
 const CLOCK_LONG: f32 = 5.4;
 const VISUALIZER_MIN: f32 = 160.;
+/// How many of the lowest bands make the bass the pulse swells the cover on.
+const PULSE_BANDS: usize = 6;
+/// How much larger the cover grows on a full bass with the pulse.
+const PULSE_SWELL: f32 = 0.045;
 /// How tall the band under the controls is, as a share of the window. It carries the seek bar,
 /// the transport and the meta line over a visualizer that reaches the bottom edge, so it runs
 /// a good deal taller than the chrome itself and fades out well above it.
@@ -150,6 +154,9 @@ pub struct FullscreenView {
     /// How much of a panel the pill just closed is still showing, springing from 1 to 0.
     leaving: Option<Sprung>,
     meta_bounds: Rc<Cell<Bounds<Pixels>>>,
+    /// Where the cover sat in the window at the last paint, which the visualizer's scenes are
+    /// drawn round.
+    cover_bounds: Rc<Cell<Bounds<Pixels>>>,
     /// The height the controls take with nothing clamping them, measured a frame ago. The dock
     /// shrinks from it while it fades, so the column moves in step with the cover.
     dock_natural: Rc<Cell<Pixels>>,
@@ -232,6 +239,7 @@ impl FullscreenView {
             panel_bounds: Rc::new(Cell::new(Bounds::default())),
             leaving: None,
             meta_bounds: Rc::new(Cell::new(Bounds::default())),
+            cover_bounds: Rc::new(Cell::new(Bounds::default())),
             dock_natural: Rc::new(Cell::new(Pixels::ZERO)),
             corner_width: Rc::new(Cell::new(Pixels::ZERO)),
         }
@@ -506,6 +514,7 @@ impl FullscreenView {
 
         // As the player opens, its cover comes into view with the rest of it while it flies.
         let fade = cx.try_global::<CoverFade>().map_or(1., |fade| fade.0);
+        let cover_bounds = self.cover_bounds.clone();
         let cover = div()
             .id("fullscreen-artwork")
             .when(fade < 1., |this| this.opacity(fade))
@@ -518,6 +527,14 @@ impl FullscreenView {
                     .cursor_pointer()
                     .on_click(move |_, _, cx| open_album(&album, cx))
             })
+            .child(
+                canvas(
+                    move |bounds, _, _| cover_bounds.set(bounds),
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
+            )
             .child(
                 div()
                     .absolute()
@@ -1370,6 +1387,19 @@ impl Render for FullscreenView {
         // The spectrum fades in and out, and the band over it with it, so both are drawn for
         // as long as any of the spectrum shows rather than for as long as it is wanted.
         let visualizer_presence = self.visualizer.presence();
+        // With the pulse the cover itself swells a little on the bass.
+        let beat = match style == VisualizerStyle::Pulse && visualizer_presence > 0. {
+            true => {
+                let bands = self.visualizer.levels().mixed();
+                let bass = bands.iter().take(PULSE_BANDS).sum::<f32>() / PULSE_BANDS as f32;
+                let reach = match self.settings.read(cx).visualizer_calm() {
+                    true => PULSE_SWELL / 2.,
+                    false => PULSE_SWELL,
+                };
+                1. + bass * reach
+            }
+            false => 1.,
+        };
         let bottom = |bounds: Bounds<Pixels>| bounds.origin.y + bounds.size.height;
         // The peaks stop an inset short of the artist line, so the glow never reaches the text.
         let visualizer_max =
@@ -1396,16 +1426,21 @@ impl Render for FullscreenView {
             self.panel.is_some() && visualizer_presence > 0. && root.size.height > Pixels::ZERO;
         let mut spectrum: Vec<AnyElement> = Vec::new();
         if visualizer_presence > 0. {
+            let settings = self.settings.read(cx);
             spectrum.push(
                 Visualizer::new(self.visualizer.levels(), visualizer_max)
                     .opacity(visualizer_presence)
                     .style_kind(style)
+                    .rainbow(settings.visualizer_rainbow())
+                    .calm(settings.visualizer_calm())
+                    .cover(self.cover_bounds.get())
                     .when_some(visualizer_tint, |this, tint| this.tint(tint))
                     .when_some(corner, |this, radius| this.corner_radius(radius))
                     .absolute()
                     .left_0()
                     .right_0()
                     .bottom_0()
+                    .when(style.scene(), |this| this.top_0())
                     .into_any_element(),
             );
         }
@@ -1523,7 +1558,7 @@ impl Render for FullscreenView {
                         // A split column carries the pill in its dock, and its cover
                         // holds still while the panel beside it enters.
                         .when(!split, |this| entering(this, switching))
-                        .child(self.artwork(side, raster_side, cover_scale, cx))
+                        .child(self.artwork(side, raster_side, cover_scale * beat, cx))
                         // The title and artist travel with the cover when a panel
                         // comes or goes.
                         .child(lifted(

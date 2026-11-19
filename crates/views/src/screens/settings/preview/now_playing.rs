@@ -148,6 +148,7 @@ pub(in crate::screens::settings) fn preview(
     let settings = view.settings.read(cx);
     let ambient = settings.ambient();
     let style = settings.visualizer_style();
+    let (rainbow, calm) = (settings.visualizer_rainbow(), settings.visualizer_calm());
 
     let field = ambient.then(|| view.previews.ambient(cover.clone(), cx));
     // over the field the miniature wears what fullscreen would, not the theme around it
@@ -196,10 +197,13 @@ pub(in crate::screens::settings) fn preview(
                             .style_kind(style)
                             .tint(tint)
                             .behind(theme.background)
+                            .rainbow(rainbow)
+                            .calm(calm)
                             .absolute()
                             .left_0()
                             .right_0()
-                            .bottom_0(),
+                            .bottom_0()
+                            .when(style.scene(), |this| this.top_0()),
                     )
                 })
                 .child(

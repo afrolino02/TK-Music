@@ -40,6 +40,7 @@ mod radio;
 mod rail;
 mod response_graph;
 mod response_sketch;
+mod scenes;
 mod scrollbar;
 mod scroller;
 mod scrubber;

@@ -1,3 +1,4 @@
+pub(crate) mod edge;
 pub(crate) mod fullscreen;
 pub(crate) mod workspace;
 

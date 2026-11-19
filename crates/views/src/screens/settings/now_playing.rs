@@ -11,6 +11,8 @@ use ui::{
 use super::rows::{Announced as _, grid, segmented};
 use super::{Group, Row, SettingsView, Slot};
 
+/// The most visualizer cards in a row, since there are too many styles for one.
+const CARD_COLUMNS: u16 = 5;
 /// How large the cross on the Off card draws.
 const GLYPH: Pixels = px(18.);
 /// How much of a visualizer card's height its spectrum takes.
@@ -40,19 +42,29 @@ const STILL: [f32; 16] = [
 impl SettingsView {
     pub(super) fn now_playing_groups(&self, cx: &App) -> Vec<Group> {
         let settings = self.settings.read(cx);
+        let style = settings.visualizer_style();
+        let mut visualizer = Vec::new();
+        if style.shown() {
+            visualizer.extend([
+                Slot::VisualizerScreens,
+                Slot::VisualizerAbsolute,
+                Slot::VisualizerRainbow,
+            ]);
+        }
+        if style.scene() {
+            visualizer.push(Slot::VisualizerCalm);
+        }
+        // The desktop's edge is drawn in a window of its own over every app, which only
+        // Windows and macOS let through to the apps under it.
+        if cfg!(any(target_os = "windows", target_os = "macos")) {
+            visualizer.push(Slot::DesktopEdge);
+        }
         vec![
             Group::new("settings-group-background", "icons/blend.svg")
                 .rows([Slot::Ambient, Slot::AmbientMotion]),
             Group::new("settings-visualizer", "icons/music-2.svg")
                 .cards(Slot::Visualizer)
-                .rows(
-                    settings
-                        .visualizer_style()
-                        .shown()
-                        .then_some([Slot::VisualizerScreens, Slot::VisualizerAbsolute])
-                        .into_iter()
-                        .flatten(),
-                ),
+                .rows(visualizer),
             Group::new("settings-group-controls", "icons/sliders-horizontal.svg")
                 .rows([Slot::FullscreenControlsAutohide, Slot::OsFullscreen]),
         ]
@@ -102,12 +114,13 @@ impl SettingsView {
         let theme = *cx.theme();
         let note = self.local_only(cx);
         let chosen = self.settings.read(cx).visualizer_style();
+        let rainbow = self.settings.read(cx).visualizer_rainbow();
         let height = theme.metrics.list_row * 1.5;
         // the card clips only to a rectangle, so the spectrum cuts itself to the inside of the
         // card's rounded border
         let corner = (theme.radius - EDGE).max(Pixels::ZERO);
 
-        let cards = grid(VisualizerStyle::ALL.len() as u16, window, cx).children(
+        let cards = grid(CARD_COLUMNS, window, cx).children(
             VisualizerStyle::ALL
                 .into_iter()
                 .enumerate()
@@ -130,6 +143,7 @@ impl SettingsView {
                                 .tint(theme.foreground)
                                 .behind(theme.secondary)
                                 .corner_radius(corner)
+                                .rainbow(rainbow)
                                 .w_full(),
                         ),
                     };
@@ -212,6 +226,51 @@ impl SettingsView {
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.settings
                         .update(cx, |settings, cx| settings.set_visualizer_absolute(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    pub(super) fn visualizer_rainbow_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on = self.settings.read(cx).visualizer_rainbow();
+
+        self.row(
+            t!("settings-visualizer-rainbow"),
+            Switch::new("visualizer-rainbow", on)
+                .name(t!("settings-visualizer-rainbow"))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_visualizer_rainbow(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    pub(super) fn visualizer_calm_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on = self.settings.read(cx).visualizer_calm();
+
+        self.row(
+            t!("settings-visualizer-calm"),
+            Switch::new("visualizer-calm", on)
+                .name(t!("settings-visualizer-calm"))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_visualizer_calm(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    pub(super) fn desktop_edge_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on = self.settings.read(cx).desktop_edge();
+
+        self.row(
+            t!("settings-desktop-edge"),
+            Switch::new("desktop-edge", on)
+                .name(t!("settings-desktop-edge"))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_desktop_edge(!on, cx));
                 }))
                 .into_any_element(),
         )

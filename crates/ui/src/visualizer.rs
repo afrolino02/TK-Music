@@ -8,10 +8,14 @@ use gpui::{
 };
 use i18n::t;
 
-use crate::snapped;
 use crate::theme::ActiveTheme as _;
+use crate::{scenes, snapped};
 
 const GAP: f32 = 3.;
+/// How many turns through the hues the rainbow takes a second.
+const RAINBOW_TURN: f32 = 0.03;
+const RAINBOW_SATURATION: f32 = 0.85;
+const RAINBOW_LIGHTNESS: f32 = 0.62;
 const OPACITY: f32 = 0.32;
 const STROKE: f32 = 2.;
 const CHANNELS: [f32; 2] = [0.62, 1.];
@@ -42,13 +46,51 @@ pub enum VisualizerStyle {
     #[default]
     Wave,
     Both,
+    /// Bars mirrored out from the middle, up and down.
+    Mirror,
+    /// Bars standing out round the cover.
+    Ring,
+    /// Specks drifting out from the cover.
+    Particles,
+    /// Ribbons of light across the top.
+    Aurora,
+    /// A record turning behind the cover.
+    Vinyl,
+    /// Rings going out from the cover on the bass.
+    Pulse,
+    /// A glowing line round the window's edge.
+    Border,
+    /// Bolts striking out from the cover.
+    Electricity,
+    /// Beams sweeping up from the bottom edge.
+    Lasers,
 }
 
 impl VisualizerStyle {
-    pub const ALL: [Self; 4] = [Self::None, Self::Bars, Self::Wave, Self::Both];
+    pub const ALL: [Self; 13] = [
+        Self::None,
+        Self::Wave,
+        Self::Bars,
+        Self::Both,
+        Self::Mirror,
+        Self::Ring,
+        Self::Particles,
+        Self::Aurora,
+        Self::Vinyl,
+        Self::Pulse,
+        Self::Border,
+        Self::Electricity,
+        Self::Lasers,
+    ];
 
     pub fn shown(self) -> bool {
         self != Self::None
+    }
+
+    /// Whether this style fills the whole player around the cover rather than running along
+    /// its bottom edge. A scene is laid over the whole player, not given a height.
+    pub fn scene(self) -> bool {
+        !matches!(self, Self::None | Self::Bars | Self::Wave | Self::Both)
     }
 
     pub fn id(self) -> &'static str {
@@ -57,6 +99,15 @@ impl VisualizerStyle {
             Self::Bars => "bars",
             Self::Wave => "wave",
             Self::Both => "both",
+            Self::Mirror => "mirror",
+            Self::Ring => "ring",
+            Self::Particles => "particles",
+            Self::Aurora => "aurora",
+            Self::Vinyl => "vinyl",
+            Self::Pulse => "pulse",
+            Self::Border => "border",
+            Self::Electricity => "electricity",
+            Self::Lasers => "lasers",
         }
     }
 
@@ -65,6 +116,15 @@ impl VisualizerStyle {
             "none" => Self::None,
             "bars" => Self::Bars,
             "both" => Self::Both,
+            "mirror" => Self::Mirror,
+            "ring" => Self::Ring,
+            "particles" => Self::Particles,
+            "aurora" => Self::Aurora,
+            "vinyl" => Self::Vinyl,
+            "pulse" => Self::Pulse,
+            "border" => Self::Border,
+            "electricity" => Self::Electricity,
+            "lasers" => Self::Lasers,
             _ => Self::default(),
         }
     }
@@ -76,6 +136,15 @@ impl VisualizerStyle {
             Self::Bars => t!("settings-visualizer-style-bars"),
             Self::Wave => t!("settings-visualizer-style-wave"),
             Self::Both => t!("settings-visualizer-style-both"),
+            Self::Mirror => t!("settings-visualizer-style-mirror"),
+            Self::Ring => t!("settings-visualizer-style-ring"),
+            Self::Particles => t!("settings-visualizer-style-particles"),
+            Self::Aurora => t!("settings-visualizer-style-aurora"),
+            Self::Vinyl => t!("settings-visualizer-style-vinyl"),
+            Self::Pulse => t!("settings-visualizer-style-pulse"),
+            Self::Border => t!("settings-visualizer-style-border"),
+            Self::Electricity => t!("settings-visualizer-style-electricity"),
+            Self::Lasers => t!("settings-visualizer-style-lasers"),
         }
     }
 
@@ -116,6 +185,9 @@ pub struct Visualizer {
     tint: Option<Hsla>,
     behind: Option<Hsla>,
     corner: Option<Pixels>,
+    rainbow: bool,
+    calm: bool,
+    cover: Option<Bounds<Pixels>>,
 }
 
 impl Visualizer {
@@ -129,6 +201,9 @@ impl Visualizer {
             tint: None,
             behind: None,
             corner: None,
+            rainbow: false,
+            calm: false,
+            cover: None,
         }
     }
 
@@ -156,6 +231,25 @@ impl Visualizer {
         self.behind = Some(behind);
         self
     }
+
+    /// Paints in a slowly turning rainbow instead of the tint.
+    pub fn rainbow(mut self, rainbow: bool) -> Self {
+        self.rainbow = rainbow;
+        self
+    }
+
+    /// Slows a scene down and keeps its reactions smaller.
+    pub fn calm(mut self, calm: bool) -> Self {
+        self.calm = calm;
+        self
+    }
+
+    /// Where the cover sits in window coordinates, which the scenes that circle it are drawn
+    /// round. Without it they circle the middle of the visualizer.
+    pub fn cover(mut self, cover: Bounds<Pixels>) -> Self {
+        self.cover = Some(cover);
+        self
+    }
 }
 
 impl Styled for Visualizer {
@@ -174,6 +268,9 @@ impl RenderOnce for Visualizer {
             tint,
             behind,
             corner,
+            rainbow,
+            calm,
+            cover,
         } = self;
         let corner = corner.filter(|radius| *radius > Pixels::ZERO);
         let theme = *cx.theme();
@@ -183,6 +280,26 @@ impl RenderOnce for Visualizer {
             behind.unwrap_or(theme.background),
         );
 
+        if style.scene() {
+            let frame = scenes::Frame::new(&levels, color, rainbow, calm, cover, corner);
+            let mut scene = base.size_full().child(scenes::scene(style, frame));
+            scene.style().refine(&overrides);
+            return scene;
+        }
+
+        // The spectrum styles have one colour, so a rainbow turns it through the hues over time.
+        let color = match rainbow {
+            true => legible(
+                gpui::hsla(
+                    (scenes::clock() * RAINBOW_TURN).rem_euclid(1.),
+                    RAINBOW_SATURATION,
+                    RAINBOW_LIGHTNESS,
+                    1.,
+                ),
+                behind.unwrap_or(theme.background),
+            ),
+            false => color,
+        };
         let ride = match style {
             VisualizerStyle::Both => RIDE,
             _ => 0.,

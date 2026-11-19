@@ -605,6 +605,13 @@ struct Appearance {
     /// Whether the visualizer draws the track at its own level rather than at the volume.
     visualizer_absolute: bool,
     visualizer_screens: VisualizerScreens,
+    /// Whether the visualizer's scenes turn through a rainbow instead of the cover's colour.
+    visualizer_rainbow: bool,
+    /// Whether the visualizer's scenes move slower and react less.
+    visualizer_calm: bool,
+    /// Whether the border scene also glows round the edge of the whole desktop while a track
+    /// plays.
+    desktop_edge: bool,
     player_bar_layout: String,
     player_bar_transparent: bool,
     icons: String,
@@ -912,6 +919,9 @@ impl Default for Appearance {
             visualizer_style: ui::VisualizerStyle::default().id().to_owned(),
             visualizer_absolute: false,
             visualizer_screens: VisualizerScreens::default(),
+            visualizer_rainbow: false,
+            visualizer_calm: false,
+            desktop_edge: false,
             player_bar_layout: PlayerBarLayout::default().id().to_owned(),
             player_bar_transparent: true,
             icons: icons::BASE.to_owned(),
@@ -1484,6 +1494,21 @@ impl AppSettings {
     /// The views of the fullscreen player the visualizer is drawn in.
     pub fn visualizer_screens(&self) -> VisualizerScreens {
         self.values.appearance.visualizer_screens
+    }
+
+    /// Whether the visualizer's scenes turn through a rainbow instead of the cover's colour.
+    pub fn visualizer_rainbow(&self) -> bool {
+        self.values.appearance.visualizer_rainbow
+    }
+
+    /// Whether the visualizer's scenes move slower and react less.
+    pub fn visualizer_calm(&self) -> bool {
+        self.values.appearance.visualizer_calm
+    }
+
+    /// Whether a glowing line runs round the edge of the whole desktop while a track plays.
+    pub fn desktop_edge(&self) -> bool {
+        self.values.appearance.desktop_edge
     }
 
     pub fn fullscreen_controls_autohide(&self) -> FullscreenControlsAutohide {
@@ -2350,6 +2375,21 @@ impl AppSettings {
 
     pub fn set_visualizer_absolute(&mut self, absolute: bool, cx: &mut Context<Self>) {
         self.values.appearance.visualizer_absolute = absolute;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_visualizer_rainbow(&mut self, rainbow: bool, cx: &mut Context<Self>) {
+        self.values.appearance.visualizer_rainbow = rainbow;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_visualizer_calm(&mut self, calm: bool, cx: &mut Context<Self>) {
+        self.values.appearance.visualizer_calm = calm;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_desktop_edge(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.values.appearance.desktop_edge = on;
         self.schedule_save(cx);
     }
 

@@ -363,7 +363,7 @@ fn typewriter(frame: &Frame) -> AnyElement {
             break;
         }
     }
-    let blink = (frame.position.as_millis() / 500) % 2 == 0;
+    let blink = (frame.position.as_millis() / 500).is_multiple_of(2);
     stage()
         .font_family(MONO)
         .when_some(index.checked_sub(1), |this, previous| {

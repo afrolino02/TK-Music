@@ -20,4 +20,5 @@ pub use screens::settings::SettingsView;
 use screens::song::SongView;
 use screens::user::UserView;
 use shared::adaptive::Adaptive;
+pub use shells::edge::DesktopEdge;
 use shells::fullscreen::FullscreenView;
