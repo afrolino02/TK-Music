@@ -14,22 +14,26 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ### Nuevo
 
-- Letras con estilo (Android): Enfoque, Karaoke, Cinemática, Palabra por palabra, Máquina de escribir, Chat y Papel. Se eligen en Ajustes o con el botón de arriba en la pantalla de letras.
+- Letras con estilo (Android): Enfoque, Karaoke, Cinemática, Palabra por palabra, Máquina de escribir y Chat. Se eligen en Ajustes o con el botón de arriba en la pantalla de letras.
 - Ajustes de la letra: fondo (portada desenfocada, color de la portada o con el visual), tamaño, alineación y color del resaltado.
 - La frase que suena aparece encima de la pantalla completa y en la barra de abajo (se puede apagar en Ajustes).
 - iPhone: los mismos estilos y ajustes de la letra, la frase en la pantalla completa y en la barra de abajo, y la frase que suena en la isla dinámica y la pantalla bloqueada (se activa en Ajustes).
-- PC (Windows y Mac): estilos de letra Karaoke, Cinemática, Palabra por palabra, Máquina de escribir, Chat y Papel, en Ajustes → Letra → Estilo de la letra. Enfoque es la letra de siempre.
-- Visuales (Android): Ondas, Barras espejo, Anillo, Partículas, Aurora, Vinilo, Pulso, Borde, Electricidad y Láseres en la pantalla completa; colores de la portada o arcoíris; movimiento suave; detrás del reproductor y en la barra de abajo (en Ajustes → Personalización).
-- Visuales en iPhone: los mismos 10 estilos, el color arcoíris, el movimiento suave, detrás del reproductor y en la barra de abajo.
+- PC (Windows y Mac): estilos de letra Karaoke, Cinemática, Palabra por palabra, Máquina de escribir y Chat, en Ajustes → Letra → Estilo de la letra. Enfoque es la letra de siempre.
+- Visuales (Android): Ondas, Barras espejo, Anillo, Partículas, Vinilo, Pulso, Borde, Electricidad y Láseres en la pantalla completa; colores de la portada o arcoíris; movimiento suave; detrás del reproductor y en la barra de abajo (en Ajustes → Personalización).
+- Visuales en iPhone: los mismos 9 estilos, el color arcoíris, el movimiento suave, detrás del reproductor y en la barra de abajo.
 - Protector de pantalla para Android TV con el visual, la portada y la letra.
-- Visuales en el PC (Windows y Mac): Barras espejo, Anillo, Partículas, Aurora, Vinilo, Pulso, Borde, Electricidad y Láseres en la pantalla completa, junto a la Onda y las Barras de antes; colores arcoíris y movimiento suave (Ajustes → Reproduciendo ahora → Visualizador).
+- Visuales en el PC (Windows y Mac): Barras espejo, Anillo, Partículas, Vinilo, Pulso, Borde, Electricidad y Láseres en la pantalla completa, junto a la Onda y las Barras de antes; colores arcoíris y movimiento suave (Ajustes → Reproduciendo ahora → Visualizador).
 - Borde sobre el escritorio (Windows y Mac): mientras suena una canción, una línea que sigue la música brilla alrededor de toda la pantalla, encima de todas las apps y sin estorbar los clics. Va apagado; se activa en Ajustes.
-- Dock en el escritorio (Windows y Mac): mientras TK-Music está en segundo plano, una barra chica arriba de la pantalla muestra la frase que suena; al hacer clic se abre con la portada, los controles y más letra. Va apagado; se activa en Ajustes → Letra.
+- Dock en el escritorio (Windows y Mac): mientras TK-Music está en segundo plano, una barra chica arriba de la pantalla muestra la canción que suena, sus controles y una onda que se mueve con la música. Va apagado; se activa en Ajustes → Reproduciendo ahora.
 - Dock flotante (Android): una barra chica encima de las otras apps con la frase que suena y los controles al tocarla. Va apagado; se activa en Ajustes.
 - TK-Music para Mac: un .dmg para Mac con chip Apple (M1 en adelante) o Intel, con macOS 11 o más nuevo. Se instala arrastrándolo a Aplicaciones y se actualiza sola, como en Windows.
 
 ### Cambios
 
+- Visuales: con el Anillo y el Vinilo la portada va redonda en el centro (en el celular, con el Vinilo gira como el disco). El Borde se ondula como una ola que se hace más honda con el bajo, y ya no se corta en las esquinas.
+- Pantalla completa (iPhone y Android): la portada queda justo en el centro, con el título debajo.
+- Letras en el PC: el Chat es más vivo (cada mensaje llega con un rebote, las palabras aparecen suaves y los demás suben con calma); Cinemática y Máquina de escribir ya no cortan las frases largas.
+- Se quitaron el estilo de letra Papel y el visual Aurora.
 - Pantalla completa: al mostrar los controles, la portada les hace sitio (se corre a la izquierda con la pantalla de lado, hacia arriba de pie), así ya no quedan encima del título.
 - Pantalla completa: una segunda onda detrás, más alta y transparente, que sigue los agudos con el segundo color de la portada, para dar profundidad. Las ondas llegan de borde a borde de la pantalla.
 - Pantalla completa: la onda de abajo ahora es como la del PC, colinas rellenas con un brillo del color de la portada que se mueven suave con la música.

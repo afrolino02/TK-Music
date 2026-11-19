@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -41,7 +42,6 @@ enum class VisualStyle(val label: String) {
     BARRAS("Barras espejo"),
     ANILLO("Anillo"),
     PARTICULAS("Partículas"),
-    AURORA("Aurora"),
     VINILO("Vinilo"),
     PULSO("Pulso"),
     BORDE("Borde"),
@@ -212,7 +212,6 @@ fun StageVisual(
             VisualStyle.BARRAS -> draw.bars(this)
             VisualStyle.ANILLO -> draw.ring(this)
             VisualStyle.PARTICULAS -> draw.particles(this)
-            VisualStyle.AURORA -> draw.aurora(this)
             VisualStyle.VINILO -> draw.vinyl(this)
             VisualStyle.PULSO -> draw.pulse(this)
             VisualStyle.BORDE -> draw.border(this)
@@ -220,6 +219,15 @@ fun StageVisual(
             VisualStyle.LASERES -> draw.lasers(this)
         }
     }
+}
+
+/** Con el Anillo y el Vinilo la portada va redonda, en el centro de lo que la rodea. */
+val VisualStyle.roundCover: Boolean get() = this == VisualStyle.ANILLO || this == VisualStyle.VINILO
+
+/** Cuánto ha girado la portada en el Vinilo, en grados, desde `since` (un `uptimeMillis`). */
+fun vinylTurn(since: Long): Float {
+    val seconds = (SystemClock.uptimeMillis() - since) / 1000f
+    return (seconds * 0.9f * (if (Store.visualCalm) 0.35f else 1f) * 57.3f) % 360f
 }
 
 /** Cuánto agranda Pulso la portada con cada golpe, para que el reproductor la escale. */
@@ -284,7 +292,7 @@ private class Draw(
 
     // Anillo: rayos alrededor de la portada que crecen con la música, con un eco detrás.
     fun ring(scope: DrawScope) = with(scope) {
-        val r = radius * 1.15f
+        val r = radius * 1.04f
         drawCircle(
             Brush.radialGradient(listOf(a.copy(alpha = 0.18f + 0.3f * s.level), Color.Transparent), center, r * 2.6f),
             r * 2.6f,
@@ -321,52 +329,17 @@ private class Draw(
         }
     }
 
-    // Aurora: cortinas de luz que flotan y se ondulan con los medios.
-    fun aurora(scope: DrawScope) = with(scope) {
-        for (i in 0 until 4) {
-            val color = if (i % 2 == 1) b else a
-            val base = size.height * (0.18f + 0.1f * i)
-            val amp = size.height * (0.05f + 0.1f * s.mid * strength)
-            val top = Path()
-            val bottom = mutableListOf<Offset>()
-            var x = 0f
-            while (x <= size.width + 16f) {
-                val y = base + sin(x * 0.004f + time * 0.35f * (1 + i * 0.3f) + i) * amp +
-                    sin(x * 0.011f - time * 0.6f + i * 2) * amp * 0.4f - s.at(x / size.width * 0.7f) * size.height * 0.08f
-                if (x == 0f) top.moveTo(x, y) else top.lineTo(x, y)
-                bottom += Offset(x, y)
-                x += 16f
-            }
-            val curtain = Path().apply {
-                addPath(top)
-                for (p in bottom.asReversed()) lineTo(p.x, p.y + size.height * 0.4f)
-                close()
-            }
-            drawPath(
-                curtain,
-                Brush.verticalGradient(
-                    0f to color.copy(alpha = 0f),
-                    0.15f to color.copy(alpha = 0.18f + 0.35f * s.level),
-                    1f to color.copy(alpha = 0f),
-                    startY = base - amp * 2,
-                    endY = base + size.height * 0.4f,
-                ),
-                blendMode = BlendMode.Plus,
-            )
-            drawPath(top, lerp(color, Color.White, 0.3f).copy(alpha = 0.15f + 0.3f * s.level), style = Stroke(1.5.dp.toPx()))
-        }
-    }
-
-    // Vinilo: un disco que gira saliendo de detrás de la portada; los surcos brillan con la música.
+    // Vinilo: un disco que gira alrededor de la portada, que va encima redonda como su etiqueta;
+    // los surcos brillan con la música.
     fun vinyl(scope: DrawScope) = with(scope) {
         memory.spin += dt * 0.9f * (if (kickScale < 1f) 0.35f else 1f)
-        val r = radius * 0.95f * (1 + s.kick * 0.012f * kickScale)
-        val disc = center + Offset(radius * 0.62f, 0f)
-        drawCircle(Brush.radialGradient(listOf(a.copy(alpha = 0.2f + 0.4f * s.level), Color.Transparent), disc, r * 1.7f), r * 1.7f, disc)
+        val r = radius * 1.55f * (1 + s.kick * 0.012f * kickScale)
+        val disc = center
+        drawCircle(Brush.radialGradient(listOf(a.copy(alpha = 0.2f + 0.4f * s.level), Color.Transparent), disc, r * 1.6f), r * 1.6f, disc)
         drawCircle(Color(0xFF0A0A0C), r, disc)
-        var g = r * 0.42f
+        var g = radius * 1.03f
         while (g < r * 0.97f) {
-            val v = s.at((g / r - 0.42f) / 0.55f * 0.8f)
+            val v = s.at((g - radius) / (r - radius) * 0.8f)
             drawCircle(Color.White.copy(alpha = 0.025f + 0.09f * v * strength), g, disc, style = Stroke(1f))
             g += max(2.2f, r / 70f)
         }
@@ -374,9 +347,6 @@ private class Draw(
             drawArc(Color.White.copy(alpha = 0.06f), -18f, 36f, true, disc - Offset(r * 0.97f, r * 0.97f), Size(r * 1.94f, r * 1.94f))
             drawArc(Color.White.copy(alpha = 0.06f), 162f, 36f, true, disc - Offset(r * 0.97f, r * 0.97f), Size(r * 1.94f, r * 1.94f))
         }
-        drawCircle(a, r * 0.34f, disc)
-        drawCircle(b, r * 0.12f, disc)
-        drawCircle(Color(0xFF0A0A0C), r * 0.03f + 2f, disc)
     }
 
     // Pulso: luces suaves de los colores de la portada detrás, que crecen con el volumen.
@@ -413,12 +383,69 @@ private class Draw(
             return Brush.sweepGradient(*stops, center = Offset(size.width / 2f, size.height / 2f))
         }
         val line = 3.dp.toPx()
-        val corner = CornerRadius(min(size.width, size.height) * 0.035f)
+        // pegada al borde, ondulándose como una ola que corre y se hace más honda con el bajo
+        val swell = (5f + 16f * s.bass + 6f * s.level) * strength * (if (kickScale < 1f) 0.65f else 1f) * density
+        val frame = rippled(line / 2, max(min(size.width, size.height) * 0.035f, 24.dp.toPx()), swell)
         for (k in 14 downTo 1) {
             val w = line * (1 + k * 1.7f)
-            drawRoundRect(sweep(0.075f * (1 - k / 15f) + 0.01f, 0f), Offset(line / 2, line / 2), Size(size.width - line, size.height - line), corner, style = Stroke(w), blendMode = BlendMode.Plus)
+            drawPath(frame, sweep(0.075f * (1 - k / 15f) + 0.01f, 0f), style = Stroke(w, join = StrokeJoin.Round), blendMode = BlendMode.Plus)
         }
-        drawRoundRect(sweep(1.15f, 0.35f), Offset(line / 2, line / 2), Size(size.width - line, size.height - line), corner, style = Stroke(line))
+        drawPath(frame, sweep(1.15f, 0.35f), style = Stroke(line, join = StrokeJoin.Round))
+    }
+
+    /**
+     * El borde, redondeado, con una ola que corre por él: cada punto se mete hacia adentro según
+     * la ola. Un número entero de olas, para que la línea se junte consigo misma donde empieza.
+     */
+    private fun DrawScope.rippled(inset: Float, corner: Float, swell: Float): Path {
+        val r = min(corner, min(size.width, size.height) / 2f)
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
+        val outline = mutableListOf<Offset>()
+        val corners = listOf(
+            Offset(right - r, top + r) to -PI.toFloat() / 2f,
+            Offset(right - r, bottom - r) to 0f,
+            Offset(left + r, bottom - r) to PI.toFloat() / 2f,
+            Offset(left + r, top + r) to PI.toFloat(),
+        )
+        for ((c, from) in corners) {
+            for (step in 0..12) {
+                val angle = from + PI.toFloat() / 2f * step / 12f
+                outline += Offset(c.x + r * cos(angle), c.y + r * sin(angle))
+            }
+        }
+        outline += outline[0]
+        val lengths = (1 until outline.size).map { (outline[it] - outline[it - 1]).getDistance() }
+        val total = lengths.sum()
+        val pieces = 240
+        val even = ArrayList<Offset>(pieces)
+        var segment = 0
+        var walked = 0f
+        for (piece in 0 until pieces) {
+            val goal = total * piece / pieces
+            while (segment < lengths.size - 1 && walked + lengths[segment] < goal) {
+                walked += lengths[segment]
+                segment++
+            }
+            val share = if (lengths[segment] > 0f) ((goal - walked) / lengths[segment]).coerceIn(0f, 1f) else 0f
+            even += outline[segment] + (outline[segment + 1] - outline[segment]) * share
+        }
+        val path = Path()
+        for (k in 0 until pieces) {
+            val before = even[(k + pieces - 1) % pieces]
+            val after = even[(k + 1) % pieces]
+            val d = after - before
+            val length = max(d.getDistance(), 0.001f)
+            val normal = Offset(-d.y / length, d.x / length)
+            val u = k.toFloat() / pieces
+            val wave = sin((u * 9f - time * 0.12f) * 2f * PI.toFloat()) * 0.6f + sin((u * 21f + time * 0.2f) * 2f * PI.toFloat()) * 0.4f
+            val at = even[k] + normal * (swell * (0.5f + 0.5f * wave))
+            if (k == 0) path.moveTo(at.x, at.y) else path.lineTo(at.x, at.y)
+        }
+        path.close()
+        return path
     }
 
     // Electricidad: rayos que salen de la portada con cada golpe del bajo, y chispas alrededor.

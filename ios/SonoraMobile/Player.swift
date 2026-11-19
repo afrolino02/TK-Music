@@ -33,6 +33,8 @@ struct PlayerView: View {
     /// Dónde está la portada de la pantalla completa en la pantalla, para dibujar los visuales
     /// alrededor de ella.
     @State private var coverFrame: CGRect = .zero
+    /// Desde cuándo está abierta la pantalla completa, para el giro del Vinilo.
+    @State private var stageStart = Date()
     /// Lo que se tocó en el corazón, mientras el servicio lo confirma.
 
     private var fg: Color { light ? Color(white: 0.08) : .white }
@@ -221,31 +223,38 @@ struct PlayerView: View {
                 )
                 .task { await spectrum.listen(store.engine) }
             }
-            VStack(spacing: 8) {
-                TimelineView(.animation(paused: store.visualStyle != .pulso)) { _ in
-                    Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
-                        // dónde quedó la portada, antes del latido de Pulso
-                        .background {
-                            GeometryReader { geometry in
-                                Color.clear.preference(key: CoverFrameKey.self, value: geometry.frame(in: .global))
-                            }
-                        }
-                        .scaleEffect(pulseScale(store.visualStyle, spectrum, calm: store.visualCalm))
-                }
-                    .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
-                    .padding(.bottom, 4)
-                if let track = state.track {
-                    Text(track.title)
-                        .font(landscape ? .title3.weight(.bold) : .title2.weight(.bold))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                    Text(track.artists)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            // la portada justo en el centro de la pantalla; el título y el artista van debajo sin
+            // moverla. Con el Anillo y el Vinilo va redonda, y con el Vinilo gira como el disco.
+            TimelineView(.animation(paused: store.visualStyle != .pulso && store.visualStyle != .vinilo)) { timeline in
+                Cover(url: state.coverLarge ?? state.track?.cover, size: cover, round: store.visualStyle.roundCover, fallback: state.track?.cover)
+                    .rotationEffect(.degrees(store.visualStyle == .vinilo ? vinylTurn(timeline.date.timeIntervalSince(stageStart), calm: store.visualCalm) : 0))
+                    .scaleEffect(pulseScale(store.visualStyle, spectrum, calm: store.visualCalm))
+            }
+            .frame(width: cover, height: cover)
+            // dónde quedó la portada, para dibujar los visuales alrededor
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.preference(key: CoverFrameKey.self, value: geometry.frame(in: .global))
                 }
             }
-            .frame(maxWidth: cover + 64)
-            .offset(x: aside, y: -size.height * 0.06 + lift)
+            .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
+            .overlay(alignment: .top) {
+                if let track = state.track {
+                    VStack(spacing: 4) {
+                        Text(track.title)
+                            .font(landscape ? .title3.weight(.bold) : .title2.weight(.bold))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                        Text(track.artists)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(width: cover + 64)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: cover + 18)
+                }
+            }
+            .offset(x: aside, y: lift)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // la frase que suena, en el sitio de los controles (a la derecha de lado, abajo de
             // pie); cuando aparecen los controles se aparta

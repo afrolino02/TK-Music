@@ -173,25 +173,25 @@ impl FullscreenControlsAutohide {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LyricStyle {
+    /// Paper was a style once; a setting saved with it reads as Focus.
     #[default]
+    #[serde(alias = "paper")]
     Focus,
     Karaoke,
     Cinematic,
     WordByWord,
     Typewriter,
     Chat,
-    Paper,
 }
 
 impl LyricStyle {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 6] = [
         Self::Focus,
         Self::Karaoke,
         Self::Cinematic,
         Self::WordByWord,
         Self::Typewriter,
         Self::Chat,
-        Self::Paper,
     ];
 
     pub fn id(self) -> &'static str {
@@ -202,7 +202,6 @@ impl LyricStyle {
             Self::WordByWord => "word-by-word",
             Self::Typewriter => "typewriter",
             Self::Chat => "chat",
-            Self::Paper => "paper",
         }
     }
 
@@ -214,7 +213,6 @@ impl LyricStyle {
             Self::WordByWord => "settings-lyric-style-word-by-word",
             Self::Typewriter => "settings-lyric-style-typewriter",
             Self::Chat => "settings-lyric-style-chat",
-            Self::Paper => "settings-lyric-style-paper",
         }
     }
 }

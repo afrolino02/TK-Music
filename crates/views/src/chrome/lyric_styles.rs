@@ -5,10 +5,7 @@ use std::ops::Range;
 use std::time::Duration;
 
 use gpui::prelude::*;
-use gpui::{
-    AnyElement, FontWeight, HighlightStyle, Hsla, Pixels, SharedString, StyledText, div, px,
-    relative,
-};
+use gpui::{AnyElement, FontWeight, HighlightStyle, Hsla, Pixels, StyledText, div, px, relative};
 use music::LyricsLine;
 use state::LyricStyle;
 
@@ -22,14 +19,14 @@ const POP: Duration = Duration::from_millis(380);
 const CHAT_KEPT: usize = 6;
 /// How long before a line the chat shows someone typing.
 const TYPING: Duration = Duration::from_millis(1100);
-/// How many lines one sheet of paper holds.
-const PAGE: usize = 4;
+/// How many letters a line has before it starts to shrink to fit.
+const FIT_FROM: f32 = 26.;
+/// How many letters past that halve it again.
+const FIT_STEP: f32 = 34.;
 /// The share of a line's time its words are spread over when the source gives none.
 const SPREAD: f32 = 0.85;
 /// The longest a line's words are spread over.
 const SPREAD_MOST: Duration = Duration::from_secs(7);
-/// The handwriting face of the Paper style, from `assets/fonts`.
-const HANDWRITING: &str = "Caveat";
 /// A serif face for the Cinematic style; the platform falls back to its own serif.
 const SERIF: &str = "Georgia";
 /// A monospaced face for the Typewriter style.
@@ -39,16 +36,20 @@ const MONO: &str = "Consolas";
 const MONO: &str = "Menlo";
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 const MONO: &str = "DejaVu Sans Mono";
-/// Where the first rule of the paper sits below its line.
-const RULE_DROP: Pixels = px(8.);
-/// How thick a rule of the paper is.
-const RULE: Pixels = px(1.);
-/// How thick the margin line of the paper is.
-const MARGIN_LINE: Pixels = px(2.);
 /// How high the typing dots bounce.
 const DOT_LIFT: Pixels = px(3.);
+/// How long a new chat message takes to pop in.
+const BUBBLE_IN: Duration = Duration::from_millis(520);
+/// How small a chat message starts before it pops to its size.
+const BUBBLE_FROM: f32 = 0.82;
+/// How far, in lines of chat text, the column starts below its place as a message arrives.
+const CHAT_PUSH: f32 = 2.6;
+/// How long a word takes to fade in inside a chat message.
+const WORD_FADE: Duration = Duration::from_millis(280);
 /// How faded each older chat message is, newest first.
 const CHAT_FADE: [f32; 6] = [1., 0.9, 0.62, 0.36, 0.18, 0.08];
+/// The caret Typewriter types behind.
+const CARET: &str = "▌";
 /// A pin before a place a chat message names.
 const PIN: &str = "📍 ";
 /// Places that, named in a line, get a pin under the chat message.
@@ -86,8 +87,6 @@ pub(super) struct Frame<'a> {
     /// The size the sung line is set at.
     pub size: Pixels,
     pub theme: ui::Theme,
-    /// The song's title, for the top of the sheet in Paper.
-    pub title: SharedString,
 }
 
 /// A word with its time, either from the source or spread over the line.
@@ -105,7 +104,6 @@ pub(super) fn render(style: LyricStyle, frame: &Frame) -> AnyElement {
         LyricStyle::WordByWord => word_by_word(frame),
         LyricStyle::Typewriter => typewriter(frame),
         LyricStyle::Chat => chat(frame),
-        LyricStyle::Paper => paper(frame),
     }
 }
 
@@ -124,6 +122,12 @@ fn through(start: Duration, span: Duration, position: Duration) -> f32 {
         Some(past) => (past.as_secs_f32() / span.as_secs_f32().max(0.001)).min(1.),
         None => 0.,
     }
+}
+
+/// `size` made smaller for a long line, so it fits the view instead of running off its edges.
+fn fit(size: Pixels, text: &str) -> Pixels {
+    let letters = text.chars().count() as f32;
+    size * (1. / (1. + (letters - FIT_FROM).max(0.) / FIT_STEP))
 }
 
 fn ease_out(t: f32) -> f32 {
@@ -273,26 +277,30 @@ fn karaoke(frame: &Frame) -> AnyElement {
 }
 
 // Cinematic: one big line in italics, like a subtitle; it rises in and the last one rises out.
+// A long line is set smaller and wraps, so it never runs off the view.
 fn cinematic(frame: &Frame) -> AnyElement {
     let index = active(frame.lines, frame.position);
     let start = index.map_or(Duration::ZERO, |index| frame.lines[index].start);
     let enter = ease_out(through(start, ENTER * 2, frame.position));
     let line = |text: String, shown: f32, offset: Pixels| {
+        let size = fit(frame.size * 1.25, &text);
         div()
             .absolute()
             .inset_0()
             .flex()
-            .items_center()
+            .flex_col()
             .justify_center()
             .px_6()
             .child(
                 div()
                     .relative()
+                    .w_full()
                     .top(offset)
                     .opacity(shown)
                     .font_family(SERIF)
                     .italic()
-                    .text_size(frame.size * 1.25)
+                    .text_size(size)
+                    .line_height(relative(1.25))
                     .text_color(frame.theme.foreground)
                     .text_center()
                     .child(text),
@@ -348,7 +356,8 @@ fn word_by_word(frame: &Frame) -> AnyElement {
         .into_any_element()
 }
 
-// Typewriter: the line is typed letter by letter as it is sung, with a blinking caret.
+// Typewriter: the line is typed letter by letter as it is sung, with a blinking caret. The caret
+// is part of the text, so a long line wraps with it instead of running off the view.
 fn typewriter(frame: &Frame) -> AnyElement {
     let Some(index) = active(frame.lines, frame.position) else {
         return waiting(frame);
@@ -363,32 +372,32 @@ fn typewriter(frame: &Frame) -> AnyElement {
             break;
         }
     }
+    let typed = typed.trim_end().to_owned();
     let blink = (frame.position.as_millis() / 500).is_multiple_of(2);
+    let caret = HighlightStyle {
+        color: Some(lit(&frame.theme).opacity(if blink { 1. } else { 0. })),
+        ..HighlightStyle::default()
+    };
+    let at = typed.len();
+    let text = format!("{typed}{CARET}");
+    let size = fit(frame.size * 0.95, &frame.lines[index].text);
     stage()
         .font_family(MONO)
         .when_some(index.checked_sub(1), |this, previous| {
             this.child(
                 div()
-                    .text_size(frame.size * 0.55)
+                    .w_full()
+                    .text_size(fit(frame.size * 0.55, &frame.lines[previous].text))
                     .text_color(frame.theme.muted_foreground)
                     .child(frame.lines[previous].text.clone()),
             )
         })
         .child(
             div()
-                .flex()
-                .items_center()
-                .text_size(frame.size * 0.95)
+                .w_full()
+                .text_size(size)
                 .text_color(frame.theme.foreground)
-                .child(typed.trim_end().to_owned())
-                .child(
-                    div()
-                        .w(frame.size * 0.5)
-                        .h(frame.size)
-                        .ml_1()
-                        .bg(lit(&frame.theme))
-                        .opacity(if blink { 1. } else { 0. }),
-                ),
+                .child(StyledText::new(text).with_highlights([(at..at + CARET.len(), caret)])),
         )
         .into_any_element()
 }
@@ -415,8 +424,9 @@ fn place(text: &str) -> Option<&'static str> {
     })
 }
 
-// Chat: lines arrive as messages; someone types first, old ones float up and fade, and the
-// chorus comes from the other side.
+// Chat: lines arrive as messages. A new one pops in with a little bounce and pushes the others
+// up smoothly; its words fade in one by one as they are sung. Someone types first, old messages
+// fade, and the chorus comes from the other side.
 fn chat(frame: &Frame) -> AnyElement {
     let theme = frame.theme;
     let sides = chorus(frame.lines);
@@ -426,21 +436,22 @@ fn chat(frame: &Frame) -> AnyElement {
         !sides[shown] && next.start > frame.position && next.start - frame.position <= TYPING
     });
     let text_size = frame.size * 0.62;
-    let bubble = |out: bool| {
+    // how far the newest message has come in, which the whole column rides on
+    let arrival = shown.checked_sub(1).map_or(1., |newest| {
+        through(frame.lines[newest].start, BUBBLE_IN, frame.position)
+    });
+    let bubble = |out: bool, grow: f32| {
+        let size = text_size * grow;
         div()
             .max_w(relative(0.8))
-            .px(text_size * 0.8)
-            .py(text_size * 0.5)
-            .rounded(theme.radius * 2.)
+            .px(size * 0.8)
+            .py(size * 0.5)
+            .rounded(theme.radius * 2. * grow)
             .when(out, |this| this.rounded_br(theme.radius * 0.4))
             .when(!out, |this| this.rounded_bl(theme.radius * 0.4))
             .bg(if out { lit(&theme) } else { theme.secondary })
-            .text_color(if out {
-                theme.primary_foreground
-            } else {
-                theme.foreground
-            })
-            .text_size(text_size)
+            .text_color(ink(&theme, out))
+            .text_size(size)
     };
     let row = |out: bool| {
         div()
@@ -453,23 +464,29 @@ fn chat(frame: &Frame) -> AnyElement {
         .map(|j| {
             let out = sides[j];
             let age = shown - 1 - j;
-            let enter = ease_back(through(frame.lines[j].start, ENTER, frame.position).min(1.));
             let fade = CHAT_FADE[age.min(CHAT_FADE.len() - 1)];
+            let newest = j + 1 == shown;
+            let t = match newest {
+                true => arrival,
+                false => 1.,
+            };
+            // a pop that overshoots a little and settles, and a slide in from its own side
+            let grow = BUBBLE_FROM + (1. - BUBBLE_FROM) * ease_back(t);
+            let slide = 1. - ease_out(t);
             let side = if out { 1. } else { -1. };
-            let lit_words = match j + 1 == shown {
-                true => painted(&words(frame.lines, j), frame.position, theme.foreground),
+            let text = match newest {
+                true => revealed(&words(frame.lines, j), frame.position, ink(&theme, out)),
                 false => StyledText::new(frame.lines[j].text.clone()),
             };
             row(out)
                 .child(
-                    bubble(out)
+                    bubble(out, grow)
                         .relative()
-                        .left(RISE * 2. * side * (1. - enter))
-                        .top(RISE * (1. - enter))
-                        .opacity(fade * enter.clamp(0., 1.))
+                        .left(RISE * 1.5 * side * slide)
+                        .opacity(fade * (t * 3.).min(1.))
                         .flex()
                         .flex_col()
-                        .child(lit_words)
+                        .child(text)
                         .when_some(place(&frame.lines[j].text), |this, name| {
                             this.child(
                                 div()
@@ -483,19 +500,29 @@ fn chat(frame: &Frame) -> AnyElement {
         })
         .collect();
     if typing {
+        let next = frame.lines[shown].start;
+        let since = (next - frame.position).as_secs_f32();
+        let t = ((TYPING.as_secs_f32() - since) / BUBBLE_IN.as_secs_f32()).clamp(0., 1.);
+        let grow = BUBBLE_FROM + (1. - BUBBLE_FROM) * ease_back(t);
         let beat = frame.position.as_secs_f32() * 6.;
         messages.push(
             row(false)
-                .child(bubble(false).flex().gap_1().children((0..3).map(|k| {
-                    let lift = ((beat - k as f32 * 0.9).sin() + 1.) / 2.;
-                    div()
-                        .relative()
-                        .top(-DOT_LIFT * lift)
-                        .size(text_size * 0.4)
-                        .rounded_full()
-                        .bg(theme.foreground)
-                        .opacity(0.5 + 0.5 * lift)
-                })))
+                .child(
+                    bubble(false, grow)
+                        .opacity((t * 3.).min(1.))
+                        .flex()
+                        .gap_1()
+                        .children((0..3).map(|k| {
+                            let lift = ((beat - k as f32 * 0.9).sin() + 1.) / 2.;
+                            div()
+                                .relative()
+                                .top(-DOT_LIFT * lift)
+                                .size(text_size * 0.4)
+                                .rounded_full()
+                                .bg(theme.foreground)
+                                .opacity(0.5 + 0.5 * lift)
+                        })),
+                )
                 .into_any_element(),
         );
     }
@@ -515,108 +542,46 @@ fn chat(frame: &Frame) -> AnyElement {
                 .gap_2()
                 .px_4()
                 .overflow_hidden()
-                .children(messages),
+                .child(
+                    // the column eases up into place as a new message takes room at the bottom
+                    div()
+                        .relative()
+                        .top(text_size * CHAT_PUSH * (1. - ease_out(arrival)))
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .children(messages),
+                ),
         )
         .into_any_element()
 }
 
-// Paper: the lyrics handwritten on a sheet of lined paper as they are sung; the chorus gets
-// highlighted and the sheet turns every few lines.
-fn paper(frame: &Frame) -> AnyElement {
-    let theme = frame.theme;
-    let index = active(frame.lines, frame.position);
-    let page = index.unwrap_or(0) / PAGE;
-    let sides = chorus(frame.lines);
-    let line_height = frame.size * 1.45;
-    let first = page * PAGE;
-    let turn = ease_out(through(
-        frame
-            .lines
-            .get(first)
-            .map_or(Duration::ZERO, |line| line.start),
-        ENTER,
-        frame.position,
-    ));
-    let marker = lit(&theme).opacity(0.35);
-    let rows = (first..(first + PAGE).min(frame.lines.len())).map(|j| {
-        let line_words = words(frame.lines, j);
-        div()
-            .h(line_height)
-            .flex()
-            .items_end()
-            .gap_x(frame.size * 0.28)
-            .overflow_hidden()
-            .children(line_words.into_iter().map(|word| {
-                let p = match index {
-                    Some(at) if j < at => 1.,
-                    Some(at) if j == at => {
-                        through(word.start, word.end - word.start, frame.position)
-                    }
-                    _ => 0.,
-                };
-                let letters = word.text.trim().chars().count();
-                let shown: String = word
-                    .text
-                    .trim()
-                    .chars()
-                    .take((letters as f32 * p).ceil() as usize)
-                    .collect();
-                div()
-                    .when(sides[j] && p >= 1., |this| this.bg(marker))
-                    .child(shown)
-            }))
-    });
-    div()
-        .size_full()
-        .flex()
-        .items_center()
-        .justify_center()
-        .p_4()
-        .child(
-            div()
-                .relative()
-                .top(RISE * 3. * (1. - turn))
-                .opacity(turn)
-                .w_full()
-                .max_w(frame.size * 22.)
-                .pl(frame.size * 2.2)
-                .pr_4()
-                .py_2()
-                .rounded(theme.radius * 0.5)
-                .shadow_lg()
-                .bg(theme.popover)
-                .text_color(theme.popover_foreground)
-                .font_family(HANDWRITING)
-                .text_size(frame.size * 1.05)
-                // the rules of the sheet and its margin
-                .children((1..=PAGE + 1).map(|k| {
-                    div()
-                        .absolute()
-                        .left_0()
-                        .right_0()
-                        .top(line_height * k as f32 + RULE_DROP)
-                        .h(RULE)
-                        .bg(theme.border)
-                }))
-                .child(
-                    div()
-                        .absolute()
-                        .top_0()
-                        .bottom_0()
-                        .left(frame.size * 1.6)
-                        .w(MARGIN_LINE)
-                        .bg(theme.danger.opacity(0.45)),
-                )
-                .child(
-                    div()
-                        .h(line_height)
-                        .flex()
-                        .items_end()
-                        .text_size(frame.size * 0.85)
-                        .underline()
-                        .child(frame.title.clone()),
-                )
-                .children(rows),
-        )
-        .into_any_element()
+/// The text colour of a chat bubble, on the accent when it is the chorus's side.
+fn ink(theme: &ui::Theme, out: bool) -> Hsla {
+    match out {
+        true => theme.primary_foreground,
+        false => theme.foreground,
+    }
+}
+
+/// The line as one text with each word fading in as it is sung. The words still to come are
+/// laid out but clear, so the bubble keeps its size while it fills.
+fn revealed(words: &[Word], position: Duration, color: Hsla) -> StyledText {
+    let mut text = String::new();
+    let mut styles = Vec::new();
+    for word in words {
+        let from = text.len();
+        text.push_str(&word.text);
+        let shown = ease_out(through(word.start, WORD_FADE, position));
+        if shown < 1. {
+            styles.push((
+                from..text.len(),
+                HighlightStyle {
+                    color: Some(color.opacity(shown)),
+                    ..HighlightStyle::default()
+                },
+            ));
+        }
+    }
+    StyledText::new(text).with_highlights(styles)
 }

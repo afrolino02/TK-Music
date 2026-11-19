@@ -30,8 +30,6 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
-        # la letra a mano del estilo Papel (Caveat, licencia OFL)
-        UIAppFonts: [Caveat.ttf]
         # la frase que suena en la isla dinámica y la pantalla bloqueada (Actividad en vivo)
         NSSupportsLiveActivities: true
         # La carpeta de Sonora aparece en la app Archivos, para copiar ahí la música.

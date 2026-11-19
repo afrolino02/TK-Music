@@ -57,7 +57,7 @@ impl SettingsView {
         // The desktop's edge is drawn in a window of its own over every app, which only
         // Windows and macOS let through to the apps under it.
         if cfg!(any(target_os = "windows", target_os = "macos")) {
-            visualizer.push(Slot::DesktopEdge);
+            visualizer.extend([Slot::DesktopEdge, Slot::DesktopDock]);
         }
         vec![
             Group::new("settings-group-background", "icons/blend.svg")
@@ -271,6 +271,21 @@ impl SettingsView {
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.settings
                         .update(cx, |settings, cx| settings.set_desktop_edge(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    pub(super) fn desktop_dock_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let on = self.settings.read(cx).desktop_dock();
+
+        self.row(
+            t!("settings-desktop-dock"),
+            Switch::new("desktop-dock", on)
+                .name(t!("settings-desktop-dock"))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_desktop_dock(!on, cx));
                 }))
                 .into_any_element(),
         )

@@ -80,7 +80,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -104,7 +103,6 @@ enum class LyricStyle(val label: String) {
     PALABRA("Palabra por palabra"),
     ESCRIBIR("Máquina de escribir"),
     CHAT("Chat"),
-    PAPEL("Papel"),
 }
 
 /** Qué va detrás de la letra. */
@@ -117,13 +115,9 @@ enum class LyricBackdrop(val label: String) {
 /** Los dos colores de la portada que suena; los pone el reproductor. */
 val LocalAccent = compositionLocalOf { Color.White to Color.White }
 
-/** La letra a mano del estilo Papel (Caveat, licencia OFL). */
-private val Handwriting = FontFamily(Font(R.font.caveat))
-
 /** El azul de las burbujas propias del Chat y el amarillo de su palabra que suena. */
 private val SentBlue = Color(0xFF3D7BF2)
 private val SentWord = Color(0xFFFFE27A)
-private val PaperInk = Color(0xFF1F2A5C)
 
 /**
  * Por dónde va la canción, en milisegundos, adelantado con el reloj entre los avisos del motor
@@ -217,7 +211,6 @@ fun StyledLyrics(result: LyricsResult, big: Boolean, focus: @Composable () -> Un
         LyricStyle.PALABRA -> WordByWord(result, position, active, scale)
         LyricStyle.ESCRIBIR -> Typewriter(result, position, active, scale)
         LyricStyle.CHAT -> Chat(result, position, active, scale)
-        LyricStyle.PAPEL -> Paper(result, position, active, scale)
         LyricStyle.ENFOQUE -> Unit
     }
 }
@@ -632,93 +625,6 @@ private fun Typing() {
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.8f)),
                 )
-            }
-        }
-    }
-}
-
-// ── Papel ───────────────────────────────────────────────────────────────────────────────────
-
-/**
- * La letra escrita a mano en una hoja de cuaderno, al ritmo de la voz. El coro (lo que se repite)
- * queda subrayado con resaltador y la hoja pasa cada cuatro líneas.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun Paper(result: LyricsResult, position: Long, active: Int, scale: Float) {
-    val chorus = remember(result) { chorusOf(result) }
-    val marker = LocalAccent.current.first.copy(alpha = 0.45f)
-    val title = Store.state?.track?.title ?: ""
-    val page = maxOf(0, active) / 4
-    val line: Dp = (34 * scale).dp
-    val lineSp = with(LocalDensity.current) { line.toSp() }
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        AnimatedContent(
-            targetState = page,
-            transitionSpec = {
-                (fadeIn(tween(500)) + slideInVertically(tween(600)) { it / 4 }) togetherWith
-                    (fadeOut(tween(450)) + slideOutHorizontally(tween(600)) { -it })
-            },
-            label = "page",
-        ) { pg ->
-            Column(
-                Modifier
-                    .widthIn(max = 560.dp)
-                    .fillMaxWidth(0.96f)
-                    .graphicsLayer { rotationZ = -1.4f }
-                    .shadow(14.dp, RoundedCornerShape(4.dp))
-                    .background(Color(0xFFF6F0E1))
-                    .drawBehind {
-                        val top = 14.dp.toPx()
-                        val step = line.toPx()
-                        var y = top + step
-                        while (y < size.height) {
-                            drawLine(Color(0x4D466EAA), Offset(0f, y), Offset(size.width, y), 1.5f)
-                            y += step
-                        }
-                        val margin = 38.dp.toPx()
-                        drawLine(Color(0x80D65050), Offset(margin, 0f), Offset(margin, size.height), 2f)
-                    }
-                    .padding(start = 48.dp, end = 16.dp, top = 14.dp, bottom = 18.dp),
-            ) {
-                Text(
-                    title,
-                    fontFamily = Handwriting,
-                    fontSize = (22 * scale).sp,
-                    lineHeight = lineSp,
-                    color = PaperInk,
-                    textDecoration = TextDecoration.Underline,
-                    maxLines = 1,
-                )
-                for (k in 0 until 4) {
-                    val j = pg * 4 + k
-                    val lyric = result.lines.getOrNull(j) ?: break
-                    val words = remember(lyric) { timedWords(lyric, result.lines.getOrNull(j + 1)) }
-                    FlowRow {
-                        for (word in words) {
-                            val p = when {
-                                j < active -> 1f
-                                j > active -> 0f
-                                else -> progress(word, position)
-                            }
-                            Text(
-                                word.text,
-                                fontFamily = Handwriting,
-                                fontSize = (25 * scale).sp,
-                                lineHeight = lineSp,
-                                color = PaperInk,
-                                modifier = Modifier
-                                    .drawBehind {
-                                        if (chorus[j] && p >= 1f) {
-                                            drawRect(marker, Offset(0f, size.height * 0.55f), Size(size.width, size.height * 0.32f))
-                                        }
-                                    }
-                                    .drawWithContent { clipRect(right = size.width * p) { this@drawWithContent.drawContent() } },
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(line * (4 - minOf(4, result.lines.size - pg * 4)).coerceAtLeast(0)))
             }
         }
     }

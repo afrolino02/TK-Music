@@ -52,8 +52,6 @@ pub enum VisualizerStyle {
     Ring,
     /// Specks drifting out from the cover.
     Particles,
-    /// Ribbons of light across the top.
-    Aurora,
     /// A record turning behind the cover.
     Vinyl,
     /// Rings going out from the cover on the bass.
@@ -67,7 +65,7 @@ pub enum VisualizerStyle {
 }
 
 impl VisualizerStyle {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 12] = [
         Self::None,
         Self::Wave,
         Self::Bars,
@@ -75,7 +73,6 @@ impl VisualizerStyle {
         Self::Mirror,
         Self::Ring,
         Self::Particles,
-        Self::Aurora,
         Self::Vinyl,
         Self::Pulse,
         Self::Border,
@@ -85,6 +82,11 @@ impl VisualizerStyle {
 
     pub fn shown(self) -> bool {
         self != Self::None
+    }
+
+    /// Whether the cover is drawn round with this style, as the middle of what circles it.
+    pub fn round_cover(self) -> bool {
+        matches!(self, Self::Ring | Self::Vinyl)
     }
 
     /// Whether this style fills the whole player around the cover rather than running along
@@ -102,7 +104,6 @@ impl VisualizerStyle {
             Self::Mirror => "mirror",
             Self::Ring => "ring",
             Self::Particles => "particles",
-            Self::Aurora => "aurora",
             Self::Vinyl => "vinyl",
             Self::Pulse => "pulse",
             Self::Border => "border",
@@ -119,7 +120,6 @@ impl VisualizerStyle {
             "mirror" => Self::Mirror,
             "ring" => Self::Ring,
             "particles" => Self::Particles,
-            "aurora" => Self::Aurora,
             "vinyl" => Self::Vinyl,
             "pulse" => Self::Pulse,
             "border" => Self::Border,
@@ -139,7 +139,6 @@ impl VisualizerStyle {
             Self::Mirror => t!("settings-visualizer-style-mirror"),
             Self::Ring => t!("settings-visualizer-style-ring"),
             Self::Particles => t!("settings-visualizer-style-particles"),
-            Self::Aurora => t!("settings-visualizer-style-aurora"),
             Self::Vinyl => t!("settings-visualizer-style-vinyl"),
             Self::Pulse => t!("settings-visualizer-style-pulse"),
             Self::Border => t!("settings-visualizer-style-border"),

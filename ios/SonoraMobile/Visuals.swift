@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Los visuales que se mueven con la música en la pantalla completa.
 enum VisualStyle: String, CaseIterable, Identifiable {
-    case ondas, barras, anillo, particulas, aurora, vinilo, pulso, borde, electricidad, laseres
+    case ondas, barras, anillo, particulas, vinilo, pulso, borde, electricidad, laseres
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -10,7 +10,6 @@ enum VisualStyle: String, CaseIterable, Identifiable {
         case .barras: return "Barras espejo"
         case .anillo: return "Anillo"
         case .particulas: return "Partículas"
-        case .aurora: return "Aurora"
         case .vinilo: return "Vinilo"
         case .pulso: return "Pulso"
         case .borde: return "Borde"
@@ -153,6 +152,16 @@ private func mix(_ a: Color, _ b: Color, _ t: Double) -> Color {
     return Color(red: r1 + (r2 - r1) * t, green: g1 + (g2 - g1) * t, blue: b1 + (b2 - b1) * t)
 }
 
+extension VisualStyle {
+    /// Con el Anillo y el Vinilo la portada va redonda, en el centro de lo que la rodea.
+    var roundCover: Bool { self == .anillo || self == .vinilo }
+}
+
+/// Cuánto ha girado la portada en el Vinilo, en grados, a la vuelta del disco.
+func vinylTurn(_ seconds: Double, calm: Bool) -> Double {
+    (seconds * 0.9 * (calm ? 0.35 : 1) * 57.3).truncatingRemainder(dividingBy: 360)
+}
+
 /// Cuánto agranda Pulso la portada con cada golpe.
 func pulseScale(_ style: VisualStyle, _ spectrum: Spectrum, calm: Bool) -> Double {
     style == .pulso ? 1 + 0.06 * Double(spectrum.kick) * (calm ? 0.3 : 1) : 1
@@ -239,7 +248,6 @@ private struct Draw {
         case .barras: bars(&context, size)
         case .anillo: ring(&context, size)
         case .particulas: particles(&context, size)
-        case .aurora: aurora(&context, size)
         case .vinilo: vinyl(&context, size)
         case .pulso: pulse(&context, size)
         case .borde: border(&context, size)
@@ -282,7 +290,7 @@ private struct Draw {
 
     // Anillo: rayos alrededor de la portada que crecen con la música, con un eco detrás.
     func ring(_ context: inout GraphicsContext, _ size: CGSize) {
-        let r = radius * 1.15
+        let r = radius * 1.04
         glowCircle(&context, a.opacity(0.18 + 0.3 * Double(s.level)), center, r * 2.6)
         let rays = 110
         let width = max(1.5, (2 * .pi * r / CGFloat(rays)) * 0.55)
@@ -321,53 +329,18 @@ private struct Draw {
         context.blendMode = .normal
     }
 
-    // Aurora: cortinas de luz que flotan y se ondulan con los medios.
-    func aurora(_ context: inout GraphicsContext, _ size: CGSize) {
-        context.blendMode = .plusLighter
-        for i in 0..<4 {
-            let color = i % 2 == 1 ? b : a
-            let base = size.height * (0.18 + 0.1 * CGFloat(i))
-            let amp = size.height * (0.05 + 0.1 * CGFloat(s.mid))
-            var top = Path()
-            var curtain = Path()
-            var points: [CGPoint] = []
-            var x: CGFloat = 0
-            while x <= size.width + 16 {
-                let xd = Double(x)
-                let swing = sin(xd * 0.004 + time * 0.35 * (1 + Double(i) * 0.3) + Double(i)) + sin(xd * 0.011 - time * 0.6 + Double(i) * 2) * 0.4
-                let music = s.at(xd / Double(size.width) * 0.7)
-                let y = base + CGFloat(swing) * amp - CGFloat(music) * size.height * 0.08
-                points.append(CGPoint(x: x, y: y))
-                x += 16
-            }
-            top.addLines(points)
-            curtain.addLines(points)
-            for p in points.reversed() { curtain.addLine(to: CGPoint(x: p.x, y: p.y + size.height * 0.4)) }
-            curtain.closeSubpath()
-            context.fill(curtain, with: .linearGradient(
-                Gradient(stops: [
-                    .init(color: color.opacity(0), location: 0),
-                    .init(color: color.opacity(0.18 + 0.35 * Double(s.level)), location: 0.15),
-                    .init(color: color.opacity(0), location: 1),
-                ]),
-                startPoint: CGPoint(x: 0, y: base - amp * 2), endPoint: CGPoint(x: 0, y: base + size.height * 0.4)
-            ))
-            context.stroke(top, with: .color(color.opacity(0.15 + 0.3 * Double(s.level))), lineWidth: 1.5)
-        }
-        context.blendMode = .normal
-    }
-
-    // Vinilo: un disco que gira saliendo de detrás de la portada; los surcos brillan con la música.
+    // Vinilo: un disco que gira alrededor de la portada, que va encima redonda como su etiqueta;
+    // los surcos brillan con la música.
     func vinyl(_ context: inout GraphicsContext, _ size: CGSize) {
         memory.spin += dt * 0.9 * (calm ? 0.35 : 1)
-        let r = radius * 0.95 * CGFloat(1 + Double(s.kick) * 0.012 * kickScale)
-        let disc = CGPoint(x: center.x + radius * 0.62, y: center.y)
-        glowCircle(&context, a.opacity(0.2 + 0.4 * Double(s.level)), disc, r * 1.7)
+        let r = radius * 1.55 * CGFloat(1 + Double(s.kick) * 0.012 * kickScale)
+        let disc = center
+        glowCircle(&context, a.opacity(0.2 + 0.4 * Double(s.level)), disc, r * 1.6)
         let ring = { (d: CGFloat) in Path(ellipseIn: CGRect(x: disc.x - d, y: disc.y - d, width: d * 2, height: d * 2)) }
         context.fill(ring(r), with: .color(Color(white: 0.04)))
-        var g = r * 0.42
+        var g = radius * 1.03
         while g < r * 0.97 {
-            let v = s.at(Double((g / r - 0.42) / 0.55) * 0.8)
+            let v = s.at(Double((g - radius) / (r - radius)) * 0.8)
             context.stroke(ring(g), with: .color(.white.opacity(0.025 + 0.09 * v)), lineWidth: 1)
             g += max(2.2, r / 70)
         }
@@ -378,9 +351,6 @@ private struct Draw {
             wedge.closeSubpath()
             context.fill(wedge, with: .color(.white.opacity(0.06)))
         }
-        context.fill(ring(r * 0.34), with: .color(a))
-        context.fill(ring(r * 0.12), with: .color(b))
-        context.fill(ring(r * 0.03 + 2), with: .color(Color(white: 0.04)))
     }
 
     // Pulso: luces suaves de los colores de la portada detrás, que crecen con el volumen.
@@ -421,14 +391,69 @@ private struct Draw {
             return .conicGradient(Gradient(stops: stops), center: CGPoint(x: size.width / 2, y: size.height / 2), angle: .degrees(-90))
         }
         let width: CGFloat = 3
-        // pegada al borde de la pantalla, siguiendo sus esquinas redondeadas
-        let frame = Path(roundedRect: CGRect(x: width / 2, y: width / 2, width: size.width - width, height: size.height - width), cornerRadius: max(0, corner - width / 2), style: .continuous)
+        // pegada al borde de la pantalla y siguiendo sus esquinas, ondulándose como una ola que
+        // corre y se hace más honda con el bajo
+        let frame = rippled(size, inset: width / 2, swell: (5 + 16 * Double(s.bass) + 6 * Double(s.level)) * (calm ? 0.65 : 1))
         context.blendMode = .plusLighter
         for k in stride(from: 14, through: 1, by: -1) {
-            context.stroke(frame, with: shading(0.075 * (1 - Double(k) / 15) + 0.01, whiten: 0), lineWidth: width * (1 + CGFloat(k) * 1.7))
+            context.stroke(frame, with: shading(0.075 * (1 - Double(k) / 15) + 0.01, whiten: 0), style: StrokeStyle(lineWidth: width * (1 + CGFloat(k) * 1.7), lineJoin: .round))
         }
         context.blendMode = .normal
-        context.stroke(frame, with: shading(1.15, whiten: 0.35), lineWidth: width)
+        context.stroke(frame, with: shading(1.15, whiten: 0.35), style: StrokeStyle(lineWidth: width, lineJoin: .round))
+    }
+
+    /// El borde de la pantalla, redondeado como sus esquinas, con una ola que corre por él: cada
+    /// punto se mete hacia adentro según la ola. Un número entero de olas, para que la línea se
+    /// junte consigo misma donde empieza.
+    private func rippled(_ size: CGSize, inset: CGFloat, swell: Double) -> Path {
+        let r = max(min(corner, min(size.width, size.height) / 2) - inset, 24)
+        let rect = CGRect(x: inset, y: inset, width: size.width - inset * 2, height: size.height - inset * 2)
+        // el contorno, en pasos de igual largo
+        var outline: [CGPoint] = []
+        let corners: [(CGPoint, Double)] = [
+            (CGPoint(x: rect.maxX - r, y: rect.minY + r), -.pi / 2),
+            (CGPoint(x: rect.maxX - r, y: rect.maxY - r), 0),
+            (CGPoint(x: rect.minX + r, y: rect.maxY - r), .pi / 2),
+            (CGPoint(x: rect.minX + r, y: rect.minY + r), .pi),
+        ]
+        for (c, from) in corners {
+            for step in 0...12 {
+                let angle = from + .pi / 2 * Double(step) / 12
+                outline.append(CGPoint(x: c.x + r * CGFloat(cos(angle)), y: c.y + r * CGFloat(sin(angle))))
+            }
+        }
+        outline.append(outline[0])
+        var lengths: [CGFloat] = []
+        for k in 1..<outline.count { lengths.append(hypot(outline[k].x - outline[k - 1].x, outline[k].y - outline[k - 1].y)) }
+        let total = lengths.reduce(0, +)
+        let pieces = 240
+        var even: [CGPoint] = []
+        var segment = 0, walked: CGFloat = 0
+        for piece in 0..<pieces {
+            let goal = total * CGFloat(piece) / CGFloat(pieces)
+            while segment < lengths.count - 1 && walked + lengths[segment] < goal {
+                walked += lengths[segment]
+                segment += 1
+            }
+            let share = lengths[segment] > 0 ? min(max((goal - walked) / lengths[segment], 0), 1) : 0
+            let p = outline[segment], q = outline[segment + 1]
+            even.append(CGPoint(x: p.x + (q.x - p.x) * share, y: p.y + (q.y - p.y) * share))
+        }
+        var points: [CGPoint] = []
+        for k in 0..<pieces {
+            let before = even[(k + pieces - 1) % pieces], after = even[(k + 1) % pieces]
+            let dx = after.x - before.x, dy = after.y - before.y
+            let length = max(hypot(dx, dy), 0.001)
+            let normal = CGPoint(x: -dy / length, y: dx / length)
+            let u = Double(k) / Double(pieces)
+            let wave = sin((u * 9 - time * 0.12) * 2 * .pi) * 0.6 + sin((u * 21 + time * 0.2) * 2 * .pi) * 0.4
+            let depth = CGFloat(swell * (0.5 + 0.5 * wave))
+            points.append(CGPoint(x: even[k].x + normal.x * depth, y: even[k].y + normal.y * depth))
+        }
+        var path = Path()
+        path.addLines(points)
+        path.closeSubpath()
+        return path
     }
 
     // Electricidad: rayos que salen de la portada con cada golpe del bajo, y chispas alrededor.

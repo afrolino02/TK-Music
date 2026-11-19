@@ -22,4 +22,4 @@ use screens::user::UserView;
 use shared::adaptive::Adaptive;
 pub use shells::edge::DesktopEdge;
 use shells::fullscreen::FullscreenView;
-pub use shells::minibar::{DOCK_CLOSED, DOCK_WIDTH, DesktopDock};
+pub use shells::minibar::{DOCK_HEIGHT, DOCK_WIDTH, DesktopDock};

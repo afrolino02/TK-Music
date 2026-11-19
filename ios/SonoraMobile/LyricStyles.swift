@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Cómo se anima la letra sincronizada.
 enum LyricStyle: String, CaseIterable, Identifiable {
-    case enfoque, karaoke, cinematica, palabra, escribir, chat, papel
+    case enfoque, karaoke, cinematica, palabra, escribir, chat
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -12,7 +12,6 @@ enum LyricStyle: String, CaseIterable, Identifiable {
         case .palabra: return "Palabra por palabra"
         case .escribir: return "Máquina de escribir"
         case .chat: return "Chat"
-        case .papel: return "Papel"
         }
     }
 }
@@ -152,7 +151,6 @@ struct StyledLyrics: View {
         case .palabra: WordByWordView(result: result, position: position, active: active, scale: scale, lit: lit)
         case .escribir: TypewriterView(result: result, position: position, active: active, scale: scale, lit: lit, date: date)
         case .chat: ChatView(result: result, position: position, active: active, scale: scale, lit: lit)
-        case .papel: PaperView(result: result, position: position, active: active, scale: scale, marker: accent.glow)
         case .enfoque: EmptyView()
         }
     }
@@ -599,84 +597,6 @@ private struct TypingBubble: View {
             }
             Spacer(minLength: 40)
         }
-    }
-}
-
-// MARK: Papel
-
-/// La letra escrita a mano en una hoja de cuaderno al ritmo de la voz; el coro queda con
-/// resaltador y la hoja pasa cada cuatro líneas.
-private struct PaperView: View {
-    @EnvironmentObject private var store: Store
-    let result: LyricsResult
-    let position: UInt64
-    let active: Int?
-    let scale: Double
-    let marker: Color
-
-    var body: some View {
-        let sides = chorus(result)
-        let current = active ?? -1
-        let page = max(0, current) / 4
-        let line = 34 * scale
-        ZStack {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(store.state.track?.title ?? "")
-                    .font(.custom("Caveat", size: 22 * scale))
-                    .underline()
-                    .frame(height: line, alignment: .bottom)
-                    .lineLimit(1)
-                ForEach(page * 4 ..< min(result.lines.count, page * 4 + 4), id: \.self) { j in
-                    let lyric = result.lines[j]
-                    let next = result.lines.indices.contains(j + 1) ? result.lines[j + 1] : nil
-                    FlowLayout(spacing: 6, lineSpacing: 0, center: false) {
-                        ForEach(Array(timedWords(lyric, next: next).enumerated()), id: \.offset) { _, word in
-                            let p = j < current ? 1 : (j > current ? 0 : progress(word, position))
-                            Text(word.text.trimmingCharacters(in: .whitespaces))
-                                .font(.custom("Caveat", size: 25 * scale))
-                                .frame(height: line, alignment: .bottom)
-                                .background(alignment: .bottom) {
-                                    if sides[j], p >= 1 { marker.opacity(0.45).frame(height: line * 0.3).offset(y: -line * 0.12) }
-                                }
-                                .mask(alignment: .leading) {
-                                    GeometryReader { geometry in Rectangle().frame(width: geometry.size.width * p) }
-                                }
-                        }
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(paperInk)
-            .frame(height: line * 5 + 20, alignment: .top)
-            .padding(.leading, 48)
-            .padding(.trailing, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: 560)
-            .background {
-                Canvas { context, size in
-                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(red: 0.965, green: 0.94, blue: 0.882)))
-                    var y = 10 + line
-                    while y < size.height {
-                        var rule = Path(); rule.move(to: CGPoint(x: 0, y: y)); rule.addLine(to: CGPoint(x: size.width, y: y))
-                        context.stroke(rule, with: .color(Color(red: 0.27, green: 0.43, blue: 0.67).opacity(0.3)), lineWidth: 1)
-                        y += line
-                    }
-                    var margin = Path(); margin.move(to: CGPoint(x: 38, y: 0)); margin.addLine(to: CGPoint(x: 38, y: size.height))
-                    context.stroke(margin, with: .color(Color(red: 0.84, green: 0.31, blue: 0.31).opacity(0.5)), lineWidth: 2)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .shadow(color: .black.opacity(0.35), radius: 14, y: 8)
-            .rotationEffect(.degrees(-1.4))
-            .padding(.horizontal, 8)
-            .id(page)
-            .transition(.asymmetric(
-                insertion: .opacity.combined(with: .offset(y: 60)),
-                removal: .opacity.combined(with: .move(edge: .leading))
-            ))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeInOut(duration: 0.6), value: page)
     }
 }
 

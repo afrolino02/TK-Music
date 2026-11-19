@@ -9,15 +9,13 @@ use std::time::Instant;
 
 use gpui::{
     Background, BorderStyle, Bounds, Div, Hsla, PathBuilder, Pixels, Point, Window, canvas, div,
-    hsla, linear_color_stop, linear_gradient, point, px, quad, size, transparent_black,
+    hsla, point, px, quad, size, transparent_black,
 };
 
 use crate::visualizer::{Levels, VisualizerStyle};
 
 /// How far the glow layer is blurred.
 const GLOW: f32 = 14.;
-/// The aurora is mostly glow, so its blur is far wider.
-const AURORA_GLOW: f32 = 34.;
 /// How much slower everything moves with calm motion on.
 const CALM_PACE: f32 = 0.5;
 /// How much smaller every reaction is with calm motion on.
@@ -26,18 +24,26 @@ const CALM_REACH: f32 = 0.65;
 const BAR_GAP: f32 = 3.;
 /// How many particles drift out from the cover.
 const PARTICLES: u32 = 110;
-/// How many ribbons the aurora has.
-const RIBBONS: usize = 4;
-/// How many points trace one ribbon of the aurora.
-const RIBBON_STEPS: usize = 48;
+/// How far the record reaches past the round cover on it, as a share of the cover's radius.
+const VINYL_REACH: f32 = 1.55;
 /// How many grooves the record shows.
 const GROOVES: usize = 14;
 /// How many rings the pulse sends out at once.
 const RINGS: usize = 5;
 /// How many pieces the border line is drawn in, each its own colour.
 const BORDER_PIECES: usize = 180;
-/// How far in from the window edge the border line runs.
-const BORDER_INSET: f32 = 1.5;
+/// How far in from the window edge the border line runs at its outermost.
+const BORDER_INSET: f32 = 1.;
+/// The least the border's corners are rounded, so its ripple turns them smoothly.
+const BORDER_CORNER: f32 = 28.;
+/// How far each piece of the border reaches into the next.
+const BORDER_LAP: f32 = 0.6;
+/// How many ripples run round the border at once.
+const BORDER_WAVES: f32 = 9.;
+/// How deep the border's ripples are on a quiet track.
+const BORDER_RIPPLE: f32 = 5.;
+/// How much deeper they get on a full bass.
+const BORDER_RIPPLE_BASS: f32 = 16.;
 /// How often a new set of bolts is struck, per second.
 const STRIKES: f32 = 14.;
 /// How many kinks a bolt has.
@@ -174,10 +180,7 @@ impl Frame {
 
 /// The scene for `style`, glow under sharp, filling its parent.
 pub(crate) fn scene(style: VisualizerStyle, frame: Frame) -> Div {
-    let blur = match style {
-        VisualizerStyle::Aurora => AURORA_GLOW,
-        _ => GLOW,
-    };
+    let blur = GLOW;
     let soft = frame.clone();
     div()
         .size_full()
@@ -216,7 +219,6 @@ fn paint(
         VisualizerStyle::Mirror => mirror(area, frame, glow, window),
         VisualizerStyle::Ring => ring(area, bounds, frame, glow, window),
         VisualizerStyle::Particles => particles(area, bounds, frame, glow, window),
-        VisualizerStyle::Aurora => aurora(area, frame, glow, window),
         VisualizerStyle::Vinyl => vinyl(bounds, frame, glow, window),
         VisualizerStyle::Pulse => pulse(area, bounds, frame, glow, window),
         VisualizerStyle::Border => border(area, frame, glow, window),
@@ -290,7 +292,7 @@ fn ring(area: Area, bounds: Bounds<Pixels>, frame: &Frame, glow: bool, window: &
     if count == 0 {
         return;
     }
-    let base = radius * 1.1 + 6.;
+    let base = radius * 1.04 + 8.;
     let longest = area.short() * 0.16 * frame.reach;
     let turn = frame.time * 0.08;
     let thick = (TAU * base / count as f32 * 0.5).max(2.);
@@ -341,55 +343,14 @@ fn particles(area: Area, bounds: Bounds<Pixels>, frame: &Frame, glow: bool, wind
     }
 }
 
-/// Ribbons of light rolling across the top half, thicker where the spectrum is loud.
-fn aurora(area: Area, frame: &Frame, glow: bool, window: &mut Window) {
-    let alpha = match glow {
-        true => 0.55,
-        false => 0.16,
-    };
-    for ribbon in 0..RIBBONS {
-        let k = ribbon as f32;
-        let mut upper = Vec::with_capacity(RIBBON_STEPS + 1);
-        let mut lower = Vec::with_capacity(RIBBON_STEPS + 1);
-        for step in 0..=RIBBON_STEPS {
-            let along = step as f32 / RIBBON_STEPS as f32;
-            let swell = (along * TAU * (0.7 + 0.25 * k) + frame.time * (0.35 + 0.1 * k) + k * 1.7)
-                .sin()
-                * area.height
-                * 0.05
-                + (along * TAU * 2.3 - frame.time * 0.5 + k).sin()
-                    * area.height
-                    * 0.025
-                    * (1. + frame.mid * 2. * frame.reach);
-            let top = area.top + area.height * (0.16 + 0.1 * k) + swell;
-            let depth = area.height
-                * (0.06 + (0.08 + 0.3 * frame.band(along * 0.5 + k * 0.13)) * frame.reach);
-            let x = area.left + area.width * along;
-            upper.push((x, top));
-            lower.push((x, top + depth));
-        }
-        lower.reverse();
-        upper.extend(lower);
-        let color = frame.at(k / RIBBONS as f32);
-        shape(
-            window,
-            &upper,
-            linear_gradient(
-                180.,
-                linear_color_stop(color.opacity(alpha), 0.),
-                linear_color_stop(color.opacity(0.), 1.),
-            ),
-        );
-    }
-}
-
-/// A record peeking out from behind the cover, turning, its grooves catching the light with the
-/// music.
+/// A record turning round the cover, which sits on it as its label, round; the grooves catch
+/// the light with the music. Without a cover it is a whole record with a label of its own.
 fn vinyl(bounds: Bounds<Pixels>, frame: &Frame, glow: bool, window: &mut Window) {
-    let (x, y, radius) = frame.hub(bounds);
-    let (x, radius) = match frame.cover {
-        Some(_) => (x + radius * 0.62, radius * 0.97),
-        None => (x, radius * 1.6),
+    let (x, y, cover) = frame.hub(bounds);
+    let labelled = frame.cover.is_some();
+    let (radius, inner) = match labelled {
+        true => (cover * VINYL_REACH, cover * 1.02),
+        false => (cover * 1.6, cover * 1.6 * 0.36),
     };
     if glow {
         disc(
@@ -407,7 +368,7 @@ fn vinyl(bounds: Bounds<Pixels>, frame: &Frame, glow: bool, window: &mut Window)
         circle(
             window,
             (x, y),
-            radius * (0.4 + 0.58 * share),
+            inner + (radius * 0.98 - inner) * share,
             1.,
             hsla(0., 0., 1., 0.05 + 0.12 * band * frame.reach),
         );
@@ -422,15 +383,17 @@ fn vinyl(bounds: Bounds<Pixels>, frame: &Frame, glow: bool, window: &mut Window)
         }));
         shape(window, &sheen, hsla(0., 0., 1., 0.06));
     }
-    let label = radius * 0.33;
-    disc(window, (x, y), label, frame.at(0.2));
+    if labelled {
+        return;
+    }
+    disc(window, (x, y), inner, frame.at(0.2));
     disc(
         window,
-        (x + spin.cos() * label * 0.6, y + spin.sin() * label * 0.6),
-        label * 0.12,
+        (x + spin.cos() * inner * 0.6, y + spin.sin() * inner * 0.6),
+        inner * 0.12,
         hsla(0., 0., 1., 0.5),
     );
-    disc(window, (x, y), label * 0.1, hsla(0., 0., 0.05, 1.));
+    disc(window, (x, y), inner * 0.1, hsla(0., 0., 0.05, 1.));
 }
 
 /// Rings going out from the cover, bolder on the bass.
@@ -463,33 +426,74 @@ fn pulse(area: Area, bounds: Bounds<Pixels>, frame: &Frame, glow: bool, window: 
     }
 }
 
-/// A thin line all round the edge with a soft glow that swells on the beat and a light that
-/// runs along it.
+/// A line all round the edge that ripples like a wave, swelling with the bass, with a soft glow
+/// and a light that runs along it. It is drawn as one ribbon of joined pieces, so it has no
+/// seams at the corners.
 fn border(area: Area, frame: &Frame, glow: bool, window: &mut Window) {
+    // a little round even on a square window, so the ripple turns the corners smoothly
     let path = resample(
-        &perimeter(
-            Area {
-                left: area.left + BORDER_INSET,
-                top: area.top + BORDER_INSET,
-                width: area.width - BORDER_INSET * 2.,
-                height: area.height - BORDER_INSET * 2.,
-            },
-            (frame.corner - BORDER_INSET).max(0.),
-        ),
+        &perimeter(area, frame.corner.max(BORDER_CORNER)),
         BORDER_PIECES,
     );
-    for (index, pair) in path.windows(2).enumerate() {
-        let place = index as f32 / BORDER_PIECES as f32;
+    let count = path.len().saturating_sub(1);
+    if count < 2 {
+        return;
+    }
+    // the line's place, pushed in from the edge by a travelling ripple
+    let ripple = |place: f32| {
+        let wave = (TAU * (place * BORDER_WAVES - frame.time * 0.12)).sin() * 0.6
+            // whole numbers of ripples, so the line meets itself where it starts
+            + (TAU * (place * (BORDER_WAVES * 2. + 3.) + frame.time * 0.2)).sin() * 0.4;
+        let swell = (BORDER_RIPPLE + BORDER_RIPPLE_BASS * frame.bass + 6. * frame.band(place))
+            * frame.reach;
+        BORDER_INSET + swell * (0.5 + 0.5 * wave)
+    };
+    let width = match glow {
+        true => 6. + (frame.bass * 10.) * frame.reach,
+        false => 2.4,
+    };
+    // each point moved inward along the edge's normal there
+    let points: Vec<((f32, f32), (f32, f32))> = (0..count)
+        .map(|index| {
+            let before = path[(index + count - 1) % count];
+            let after = path[(index + 1) % count];
+            let (dx, dy) = (after.0 - before.0, after.1 - before.1);
+            let length = (dx * dx + dy * dy).sqrt().max(0.001);
+            let normal = (-dy / length, dx / length);
+            let place = index as f32 / count as f32;
+            let at = path[index];
+            let reach = ripple(place) + width / 2.;
+            ((at.0 + normal.0 * reach, at.1 + normal.1 * reach), normal)
+        })
+        .collect();
+    for index in 0..count {
+        let (from, from_normal) = points[index];
+        let (to, to_normal) = points[(index + 1) % count];
+        let place = index as f32 / count as f32;
         let travel = 0.5 + 0.5 * (TAU * (place * 2. - frame.time * 0.25)).sin();
-        let band = frame.band(place);
-        let (width, alpha) = match glow {
-            true => (
-                6. + (frame.bass * 10. + band * 6.) * frame.reach,
-                (0.3 + frame.level * 0.7) * (0.6 + 0.4 * travel),
-            ),
-            false => (2., (0.55 + frame.level * 0.45) * (0.5 + 0.5 * travel)),
+        let alpha = match glow {
+            true => (0.3 + frame.level * 0.7) * (0.6 + 0.4 * travel),
+            false => (0.6 + frame.level * 0.4) * (0.55 + 0.45 * travel),
         };
-        line(window, pair, width, frame.at(place).opacity(alpha.min(1.)));
+        let half = width / 2.;
+        // each piece reaches a hair into the next, so no seam shows between them
+        let (dx, dy) = (to.0 - from.0, to.1 - from.1);
+        let length = (dx * dx + dy * dy).sqrt().max(0.001);
+        let lap = (dx / length * BORDER_LAP, dy / length * BORDER_LAP);
+        let (from, to) = (
+            (from.0 - lap.0, from.1 - lap.1),
+            (to.0 + lap.0, to.1 + lap.1),
+        );
+        shape(
+            window,
+            &[
+                (from.0 - from_normal.0 * half, from.1 - from_normal.1 * half),
+                (to.0 - to_normal.0 * half, to.1 - to_normal.1 * half),
+                (to.0 + to_normal.0 * half, to.1 + to_normal.1 * half),
+                (from.0 + from_normal.0 * half, from.1 + from_normal.1 * half),
+            ],
+            frame.at(place).opacity(alpha.min(1.)),
+        );
     }
 }
 

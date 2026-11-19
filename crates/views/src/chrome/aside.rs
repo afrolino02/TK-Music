@@ -1010,10 +1010,6 @@ impl Aside {
                 matches!(playback.state(), PlaybackState::Playing),
             ),
         };
-        let title = playback
-            .track()
-            .map(|track| SharedString::from(track.name.clone()))
-            .unwrap_or_default();
         let frame_scale = match self.titled {
             true => 1.,
             false => lyrics_frame_scale(window.viewport_size()),
@@ -1031,7 +1027,6 @@ impl Aside {
             position,
             size: active_verse_size(verse),
             theme,
-            title,
         };
         div()
             .id("lyric-style")

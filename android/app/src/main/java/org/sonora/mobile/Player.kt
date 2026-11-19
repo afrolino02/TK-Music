@@ -450,22 +450,29 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Co
                 glow,
                 depth,
                 spectrum,
-                focus = (maxWidth / 2 + aside) to (maxHeight / 2 - maxHeight * 0.06f + lift - 48.dp),
+                focus = (maxWidth / 2 + aside) to (maxHeight / 2 + lift),
                 cover = cover,
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        // la portada justo en el centro de la pantalla, con el título y el artista debajo; con el
+        // Anillo y el Vinilo va redonda, y con el Vinilo gira como el disco
         Column(
             Modifier
-                .align(Alignment.Center)
-                .offset(x = aside, y = -maxHeight * 0.06f + lift)
+                .align(Alignment.TopCenter)
+                .offset(x = aside, y = maxHeight / 2 - cover / 2 + lift)
                 .widthIn(max = cover + 64.dp)
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(Modifier.graphicsLayer { pulseScale(style, spectrum).let { scaleX = it; scaleY = it } }) {
-                Cover(state.coverLarge ?: track.cover, cover, under = track.cover)
+            Box(
+                Modifier.graphicsLayer {
+                    pulseScale(style, spectrum).let { scaleX = it; scaleY = it }
+                    rotationZ = if (style == VisualStyle.VINILO) vinylTurn(started) else 0f
+                },
+            ) {
+                Cover(state.coverLarge ?: track.cover, cover, round = style.roundCover, under = track.cover)
             }
             Spacer(Modifier.size(4.dp))
             Text(

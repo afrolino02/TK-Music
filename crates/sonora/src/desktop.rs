@@ -11,7 +11,7 @@ use gpui::{
     WindowKind, WindowOptions, point, px, size,
 };
 use state::Sonora;
-use views::{DOCK_CLOSED, DOCK_WIDTH, DesktopDock, DesktopEdge};
+use views::{DOCK_HEIGHT, DOCK_WIDTH, DesktopDock, DesktopEdge};
 
 /// How much shorter than the screen the edge's window is. Windows takes a topmost window that
 /// covers the whole screen for a fullscreen app, which hides the taskbar and holds back
@@ -161,7 +161,7 @@ fn open_dock(cx: &mut App) -> Option<AnyWindowHandle> {
             screen.origin.x + (screen.size.width - DOCK_WIDTH) / 2.,
             screen.origin.y + DOCK_DROP,
         ),
-        size(DOCK_WIDTH, DOCK_CLOSED),
+        size(DOCK_WIDTH, DOCK_HEIGHT),
     );
     let opened = cx.open_window(overlay(bounds, display.id()), |window, cx| {
         window.set_rem_size(ui::ActiveTheme::theme(cx).font_size);

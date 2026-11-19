@@ -469,6 +469,7 @@ impl FullscreenView {
         layout_side: Pixels,
         raster_side: Pixels,
         presentation_scale: f32,
+        round_cover: bool,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         // The cover leaves the player bar with that cover's tight corners, which round out to
@@ -477,6 +478,11 @@ impl FullscreenView {
         let radius = match self.on_show {
             true => self.cover_zoom.get().radius(tight, round),
             false => self.cover_zoom.get().radius(round, tight),
+        };
+        // the ring and the record circle the cover, so it is drawn round in the middle of them
+        let radius = match round_cover {
+            true => raster_side / 2.,
+            false => radius,
         };
         let pad = px(COVER_LAYER_PAD);
         let inset = (layout_side - raster_side) / 2. - pad;
@@ -1558,7 +1564,13 @@ impl Render for FullscreenView {
                         // A split column carries the pill in its dock, and its cover
                         // holds still while the panel beside it enters.
                         .when(!split, |this| entering(this, switching))
-                        .child(self.artwork(side, raster_side, cover_scale * beat, cx))
+                        .child(self.artwork(
+                            side,
+                            raster_side,
+                            cover_scale * beat,
+                            style.shown() && style.round_cover() && visualizer_presence > 0.,
+                            cx,
+                        ))
                         // The title and artist travel with the cover when a panel
                         // comes or goes.
                         .child(lifted(
