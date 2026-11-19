@@ -361,7 +361,7 @@ object Store : EngineListener {
         lyricSize = preferences.getFloat("lyrics.size", 1f)
         lyricStart = preferences.getBoolean("lyrics.start", false)
         lyricWhite = preferences.getBoolean("lyrics.white", false)
-        lyricsOnStage = preferences.getBoolean("lyrics.stage", true)
+        lyricsOnStage = preferences.getBoolean("lyrics.stage", false)
         lyricsInBar = preferences.getBoolean("lyrics.bar", true)
         dockEnabled = preferences.getBoolean("dock.enabled", false)
         offlineMode = preferences.getBoolean("offline.mode", false)
@@ -534,7 +534,7 @@ object Store : EngineListener {
     var lyricWhite by mutableStateOf(false)
         private set
     /** La línea que suena encima de la pantalla completa. */
-    var lyricsOnStage by mutableStateOf(true)
+    var lyricsOnStage by mutableStateOf(false)
         private set
     /** La línea que suena en la barra de abajo, en vez del artista. */
     var lyricsInBar by mutableStateOf(true)

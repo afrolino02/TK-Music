@@ -185,8 +185,10 @@ struct PlayerView: View {
         let cover = max(120, landscape
             ? min(size.width * 0.34, size.height * 0.5)
             : min(size.width * 0.72, size.height * 0.4))
-        let aside: CGFloat = stageShown && landscape ? -size.width * 0.21 : 0
-        let lift: CGFloat = stageShown && !landscape ? -size.height * 0.1 : 0
+        // con los controles a la vista (o con la letra encendida), la portada les hace sitio
+        let sung = store.lyricsOnStage
+        let aside: CGFloat = (stageShown || sung) && landscape ? -size.width * 0.21 : 0
+        let lift: CGFloat = (stageShown || sung) && !landscape ? -size.height * 0.1 : 0
         return ZStack {
             // de borde a borde, también debajo de la isla y de la barra de inicio
             VStack {
@@ -212,13 +214,25 @@ struct PlayerView: View {
             .frame(maxWidth: cover + 64)
             .offset(x: aside, y: -size.height * 0.06 + lift)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // la frase que suena, encima de la onda; se aparta cuando aparecen los controles
-            if store.lyricsOnStage {
-                VStack {
-                    Spacer()
-                    StageLine(big: landscape)
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, size.height * (landscape ? 0.16 : 0.2))
+            // la frase que suena, en el sitio de los controles (a la derecha de lado, abajo de
+            // pie); cuando aparecen los controles se aparta
+            if sung {
+                Group {
+                    if landscape {
+                        HStack {
+                            Spacer()
+                            StageLine(big: true)
+                                .frame(width: size.width * 0.42)
+                                .padding(.trailing, 32)
+                        }
+                    } else {
+                        VStack {
+                            Spacer()
+                            StageLine(big: false)
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, size.height * 0.13)
+                        }
+                    }
                 }
                 .opacity(stageShown ? 0 : 1)
                 .allowsHitTesting(false)

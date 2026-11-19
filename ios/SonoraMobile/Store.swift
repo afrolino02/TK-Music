@@ -184,7 +184,7 @@ final class Store: ObservableObject {
         didSet { UserDefaults.standard.set(lyricWhite, forKey: "lyrics.white") }
     }
     /// La frase que suena encima de la pantalla completa.
-    @Published var lyricsOnStage = UserDefaults.standard.object(forKey: "lyrics.stage") as? Bool ?? true {
+    @Published var lyricsOnStage = UserDefaults.standard.object(forKey: "lyrics.stage") as? Bool ?? false {
         didSet { UserDefaults.standard.set(lyricsOnStage, forKey: "lyrics.stage") }
     }
     /// La frase que suena en la barra de abajo, en vez del artista.

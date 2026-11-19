@@ -417,14 +417,15 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Co
         } else {
             minOf(maxWidth * 0.72f, maxHeight * 0.4f)
         }.coerceAtLeast(120.dp)
-        // con los controles a la vista, la portada les hace sitio
+        // con los controles a la vista (o con la letra encendida), la portada les hace sitio
+        val sung = Store.lyricsOnStage
         val aside by animateDpAsState(
-            if (shown && landscape) -maxWidth * 0.21f else 0.dp,
+            if ((shown || sung) && landscape) -maxWidth * 0.21f else 0.dp,
             tween(if (shown) 450 else 900, easing = FastOutSlowInEasing),
             label = "aside",
         )
         val lift by animateDpAsState(
-            if (shown && !landscape) -maxHeight * 0.1f else 0.dp,
+            if ((shown || sung) && !landscape) -maxHeight * 0.1f else 0.dp,
             tween(if (shown) 450 else 900, easing = FastOutSlowInEasing),
             label = "lift",
         )
@@ -460,15 +461,22 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Co
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        // la frase que suena, encima de la onda; se aparta cuando aparecen los controles
-        if (Store.lyricsOnStage) {
+        // la frase que suena, en el sitio de los controles (a la derecha de lado, abajo de pie);
+        // cuando aparecen los controles se aparta
+        if (sung) {
             StageLine(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(bottom = maxHeight * if (landscape) 0.16f else 0.2f)
-                    .padding(horizontal = 32.dp)
-                    .graphicsLayer { alpha = 1f - controls },
+                if (landscape) {
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .width(maxWidth * 0.42f)
+                        .padding(end = 32.dp)
+                } else {
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(bottom = maxHeight * 0.13f)
+                        .padding(horizontal = 24.dp)
+                }.graphicsLayer { alpha = 1f - controls },
                 big = landscape,
             )
         }
