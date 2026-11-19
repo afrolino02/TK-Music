@@ -203,14 +203,6 @@ final class Store: ObservableObject {
     @Published var visualCalm = UserDefaults.standard.bool(forKey: "visual.calm") {
         didSet { UserDefaults.standard.set(visualCalm, forKey: "visual.calm") }
     }
-    /// El visual, tenue, detrás del reproductor.
-    @Published var visualBehind = UserDefaults.standard.bool(forKey: "visual.behind") {
-        didSet { UserDefaults.standard.set(visualBehind, forKey: "visual.behind") }
-    }
-    /// Una franja del visual en la barra de abajo.
-    @Published var visualInBar = UserDefaults.standard.bool(forKey: "visual.bar") {
-        didSet { UserDefaults.standard.set(visualInBar, forKey: "visual.bar") }
-    }
     /// La frase que suena en la isla dinámica y la pantalla bloqueada (apagado hasta que se active).
     @Published var liveLyrics = UserDefaults.standard.bool(forKey: "lyrics.live") {
         didSet { UserDefaults.standard.set(liveLyrics, forKey: "lyrics.live") }

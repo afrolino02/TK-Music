@@ -158,66 +158,64 @@ func pulseScale(_ style: VisualStyle, _ spectrum: Spectrum, calm: Bool) -> Doubl
     style == .pulso ? 1 + 0.06 * Double(spectrum.kick) * (calm ? 0.3 : 1) : 1
 }
 
-/// El visual elegido en Ajustes. `focus` es el centro de la portada y `cover` su tamaño: los
-/// visuales que la rodean (Anillo, Vinilo, Pulso, Electricidad) se dibujan alrededor. Ondas va
-/// aparte (`StageWave`).
+/// El visual elegido en Ajustes, de borde a borde de la pantalla. `cover` es dónde está la
+/// portada en la pantalla (`.global`): los visuales que la rodean (Anillo, Vinilo, Pulso,
+/// Electricidad) se dibujan alrededor de ella, estén donde estén. Ondas va aparte (`StageWave`).
 struct StageVisual: View {
     @EnvironmentObject private var store: Store
     let style: VisualStyle
     let glow: Color
     let depth: Color
     let spectrum: Spectrum
-    let focus: CGPoint
-    let cover: CGFloat
+    let cover: CGRect
     @State private var memory = VisualMemory()
     @State private var start = Date()
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            Canvas { context, size in
-                let now = timeline.date
-                let dt = min(0.1, max(0, now.timeIntervalSince(memory.last ?? now.addingTimeInterval(-0.033))))
-                memory.last = now
-                let seconds = now.timeIntervalSince(start)
-                let calm = store.visualCalm
-                let (a, b) = visualColors(store.visualColor, glow: glow, depth: depth, seconds: seconds)
-                var draw = Draw(
-                    s: spectrum, a: a, b: b, time: seconds * (calm ? 0.35 : 1), dt: dt, center: focus,
-                    radius: cover / 2, kickScale: calm ? 0.3 : 1, calm: calm, memory: memory
-                )
-                draw.paint(style, in: &context, size: size)
+        GeometryReader { geometry in
+            // el lienzo y la portada, en las mismas coordenadas
+            let origin = geometry.frame(in: .global).origin
+            let focus = cover.isEmpty
+                ? CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                : CGPoint(x: cover.midX - origin.x, y: cover.midY - origin.y)
+            let side = cover.isEmpty ? min(geometry.size.width, geometry.size.height) * 0.6 : cover.width
+            TimelineView(.animation) { timeline in
+                Canvas { context, size in
+                    let now = timeline.date
+                    let dt = min(0.1, max(0, now.timeIntervalSince(memory.last ?? now.addingTimeInterval(-0.033))))
+                    memory.last = now
+                    let seconds = now.timeIntervalSince(start)
+                    let calm = store.visualCalm
+                    let (a, b) = visualColors(store.visualColor, glow: glow, depth: depth, seconds: seconds)
+                    var draw = Draw(
+                        s: spectrum, a: a, b: b, time: seconds * (calm ? 0.35 : 1), dt: dt, center: focus,
+                        radius: side / 2, kickScale: calm ? 0.3 : 1, calm: calm, memory: memory,
+                        corner: screenCornerRadius()
+                    )
+                    draw.paint(style, in: &context, size: size)
+                }
             }
         }
+        .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
 
-/// Una franja chica para la barra de abajo: barras que suben desde el borde.
-struct BarVisual: View {
-    let spectrum: Spectrum
-    let glow: Color
-    let depth: Color
-    @EnvironmentObject private var store: Store
-    @State private var start = Date()
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 30)) { timeline in
-            Canvas { context, size in
-                let (a, b) = visualColors(store.visualColor, glow: glow, depth: depth, seconds: timeline.date.timeIntervalSince(start))
-                let count = max(24, Int(size.width / 9))
-                let step = size.width / CGFloat(count)
-                for i in 0..<count {
-                    let v = spectrum.at(Double(i) / Double(count) * 0.8)
-                    let h = 2 + v * size.height * 0.9
-                    let rect = CGRect(x: CGFloat(i) * step + step * 0.2, y: size.height - h, width: step * 0.6, height: h)
-                    context.fill(Path(roundedRect: rect, cornerRadius: step * 0.3), with: .color(mix(a, b, Double(i) / Double(count)).opacity(0.35)))
-                }
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+/// Cuánto se redondean las esquinas de la pantalla del teléfono, para que el Borde las siga.
+/// iOS lo sabe pero no lo publica; si no responde, se calcula por el tamaño de la pantalla.
+func screenCornerRadius() -> CGFloat {
+    let screen = UIScreen.main
+    let key = ["Radius", "Corner", "display", "_"].reversed().joined()
+    if screen.responds(to: NSSelectorFromString(key)), let radius = screen.value(forKey: key) as? CGFloat, radius > 0 {
+        return radius
     }
+    // los iPhone sin botón de inicio tienen esquinas de unos 39 a 62 puntos; con botón, rectas
+    let window = UIApplication.shared.connectedScenes
+        .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+        .first
+    let notch = (window?.safeAreaInsets.bottom ?? 0) > 0
+    return notch ? 47 : 0
 }
 
 /// Todo lo que un cuadro necesita para dibujarse.
@@ -232,6 +230,8 @@ private struct Draw {
     let kickScale: Double
     let calm: Bool
     let memory: VisualMemory
+    /// El radio de las esquinas de la pantalla.
+    let corner: CGFloat
 
     mutating func paint(_ style: VisualStyle, in context: inout GraphicsContext, size: CGSize) {
         switch style {
@@ -421,7 +421,8 @@ private struct Draw {
             return .conicGradient(Gradient(stops: stops), center: CGPoint(x: size.width / 2, y: size.height / 2), angle: .degrees(-90))
         }
         let width: CGFloat = 3
-        let frame = Path(roundedRect: CGRect(x: width / 2, y: width / 2, width: size.width - width, height: size.height - width), cornerRadius: min(size.width, size.height) * 0.035)
+        // pegada al borde de la pantalla, siguiendo sus esquinas redondeadas
+        let frame = Path(roundedRect: CGRect(x: width / 2, y: width / 2, width: size.width - width, height: size.height - width), cornerRadius: max(0, corner - width / 2), style: .continuous)
         context.blendMode = .plusLighter
         for k in stride(from: 14, through: 1, by: -1) {
             context.stroke(frame, with: shading(0.075 * (1 - Double(k) / 15) + 0.01, whiten: 0), lineWidth: width * (1 + CGFloat(k) * 1.7))

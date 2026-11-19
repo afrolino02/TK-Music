@@ -34,6 +34,10 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 - Pantalla completa: una segunda onda detrás, más alta y transparente, que sigue los agudos con el segundo color de la portada, para dar profundidad. Las ondas llegan de borde a borde de la pantalla.
 - Pantalla completa: la onda de abajo ahora es como la del PC, colinas rellenas con un brillo del color de la portada que se mueven suave con la música.
 
+### Arreglos
+
+- iPhone: los visuales de la pantalla completa ahora se dibujan de borde a borde y alrededor de la portada donde de verdad está; el Borde sigue las esquinas redondeadas de la pantalla. Los visuales salen solo en la pantalla completa (se quitaron del reproductor normal y de la barra de abajo).
+
 ## [1.0.17] — 2026-11-17
 
 ### Nuevo

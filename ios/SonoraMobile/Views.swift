@@ -526,8 +526,6 @@ struct LookSection: View {
                     Text("Los visuales se mueven más lento y sin saltos fuertes.").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Toggle("Visual detrás del reproductor", isOn: $store.visualBehind)
-            Toggle("Visual en la barra de abajo", isOn: $store.visualInBar)
             Toggle(isOn: $store.liveLyrics) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Letra en la isla y la pantalla bloqueada")
@@ -609,7 +607,6 @@ struct PlayerBar: View {
     let track: TrackItem
     let state: PlaybackState
     let onOpen: () -> Void
-    @State private var barSpectrum = Spectrum()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -636,13 +633,6 @@ struct PlayerBar: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background {
-                // una franja que se mueve con la música (Ajustes → Visual en la barra de abajo)
-                if store.visualInBar, state.status == .playing {
-                    BarVisual(spectrum: barSpectrum, glow: store.accent, depth: store.accent.opacity(0.6))
-                        .task { await barSpectrum.listen(store.engine) }
-                }
-            }
         }
         .background(.bar)
         .contentShape(Rectangle())

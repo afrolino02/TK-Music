@@ -30,6 +30,9 @@ struct PlayerView: View {
     @State private var stageDepth: Color?
     /// La música como números, para los visuales.
     @State private var spectrum = Spectrum()
+    /// Dónde está la portada de la pantalla completa en la pantalla, para dibujar los visuales
+    /// alrededor de ella.
+    @State private var coverFrame: CGRect = .zero
     /// Lo que se tocó en el corazón, mientras el servicio lo confirma.
 
     private var fg: Color { light ? Color(white: 0.08) : .white }
@@ -49,29 +52,6 @@ struct PlayerView: View {
         .background {
             ZStack {
                 Backdrop(url: state.track?.cover, light: $light)
-                // el visual elegido, tenue, detrás del reproductor
-                if store.visualBehind && !stage {
-                    GeometryReader { geometry in
-                        if store.visualStyle == .ondas {
-                            VStack {
-                                Spacer()
-                                StageWave(color: stageGlow ?? fg, depth: stageDepth ?? stageGlow ?? fg).frame(height: geometry.size.height * 0.3)
-                            }
-                        } else {
-                            StageVisual(
-                                style: store.visualStyle,
-                                glow: stageGlow ?? fg,
-                                depth: stageDepth ?? stageGlow ?? fg,
-                                spectrum: spectrum,
-                                focus: CGPoint(x: geometry.size.width / 2, y: geometry.size.height * 0.4),
-                                cover: min(geometry.size.width, geometry.size.height) * 0.6
-                            )
-                            .task { await spectrum.listen(store.engine) }
-                        }
-                    }
-                    .opacity(0.4)
-                    .ignoresSafeArea()
-                }
             }
         }
         // los colores de la portada, para resaltar la letra y para las ondas
@@ -237,14 +217,19 @@ struct PlayerView: View {
                     glow: stageGlow ?? fg,
                     depth: stageDepth ?? stageGlow ?? fg,
                     spectrum: spectrum,
-                    focus: CGPoint(x: size.width / 2 + aside, y: size.height / 2 - size.height * 0.06 + lift - 48),
-                    cover: cover
+                    cover: coverFrame
                 )
                 .task { await spectrum.listen(store.engine) }
             }
             VStack(spacing: 8) {
                 TimelineView(.animation(paused: store.visualStyle != .pulso)) { _ in
                     Cover(url: state.coverLarge ?? state.track?.cover, size: cover, fallback: state.track?.cover)
+                        // dónde quedó la portada, antes del latido de Pulso
+                        .background {
+                            GeometryReader { geometry in
+                                Color.clear.preference(key: CoverFrameKey.self, value: geometry.frame(in: .global))
+                            }
+                        }
                         .scaleEffect(pulseScale(store.visualStyle, spectrum, calm: store.visualCalm))
                 }
                     .shadow(color: .black.opacity(0.45), radius: 28, y: 14)
@@ -330,6 +315,7 @@ struct PlayerView: View {
             .opacity(stageShown ? 1 : 0)
             .allowsHitTesting(stageShown)
         }
+        .onPreferenceChange(CoverFrameKey.self) { coverFrame = $0 }
         .contentShape(Rectangle())
         .onTapGesture { stagePoke += 1 }
         .task(id: stagePoke) {
@@ -1061,5 +1047,14 @@ struct AddSongsView: View {
             results = await store.search(text, in: slug)
             searching = false
         }
+    }
+}
+
+/// Dónde está la portada de la pantalla completa, en coordenadas de la pantalla.
+private struct CoverFrameKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        let next = nextValue()
+        if !next.isEmpty { value = next }
     }
 }
