@@ -115,6 +115,7 @@ private func activeLine(_ result: LyricsResult, _ position: UInt64) -> Int? {
 }
 
 /// El color para resaltar, legible sobre el fondo del reproductor.
+@MainActor
 private struct Highlight {
     let store: Store
     let accent: LyricAccent
