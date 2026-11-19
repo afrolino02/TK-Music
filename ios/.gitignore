@@ -2,3 +2,4 @@ Generated/
 build/
 *.xcodeproj/
 SonoraMobile/Info.plist
+LiveActivity/Info.plist

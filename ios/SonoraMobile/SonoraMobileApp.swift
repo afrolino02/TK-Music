@@ -18,6 +18,7 @@ struct SonoraMobileApp: App {
             .environmentObject(store)
             .tint(store.accent)
             .task(id: store.adaptive ? store.state.track?.cover : nil) { await store.refreshAccent() }
+            .onAppear { LiveLyrics.shared.start(store) }
             .preferredColorScheme(store.appearance.scheme)
         }
     }

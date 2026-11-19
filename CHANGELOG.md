@@ -17,6 +17,7 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 - Letras con estilo (Android): Enfoque, Karaoke, Cinemática, Palabra por palabra, Máquina de escribir, Chat y Papel. Se eligen en Ajustes o con el botón de arriba en la pantalla de letras.
 - Ajustes de la letra: fondo (portada desenfocada, color de la portada o con el visual), tamaño, alineación y color del resaltado.
 - La frase que suena aparece encima de la pantalla completa y en la barra de abajo (se puede apagar en Ajustes).
+- iPhone: los mismos estilos y ajustes de la letra, la frase en la pantalla completa y en la barra de abajo, y la frase que suena en la isla dinámica y la pantalla bloqueada (se activa en Ajustes).
 - Dock flotante (Android): una barra chica encima de las otras apps con la frase que suena y los controles al tocarla. Va apagado; se activa en Ajustes.
 - TK-Music para Mac: un .dmg para Mac con chip Apple (M1 en adelante) o Intel, con macOS 11 o más nuevo. Se instala arrastrándolo a Aplicaciones y se actualiza sola, como en Windows.
 

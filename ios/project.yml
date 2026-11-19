@@ -16,6 +16,7 @@ targets:
     platform: iOS
     sources:
       - path: SonoraMobile
+      - path: Shared
       # Los generan UniFFI a partir del crate `mobile`; no se editan a mano.
       - path: Generated
         excludes:
@@ -31,6 +32,8 @@ targets:
         UIBackgroundModes: [audio]
         # la letra a mano del estilo Papel (Caveat, licencia OFL)
         UIAppFonts: [Caveat.ttf]
+        # la frase que suena en la isla dinámica y la pantalla bloqueada (Actividad en vivo)
+        NSSupportsLiveActivities: true
         # La carpeta de Sonora aparece en la app Archivos, para copiar ahí la música.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
@@ -52,6 +55,7 @@ targets:
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
     dependencies:
+      - target: TKMusicLive
       - package: Lottie
       - sdk: Security.framework
       - sdk: SystemConfiguration.framework
@@ -60,3 +64,32 @@ targets:
       - sdk: AudioToolbox.framework
       - sdk: AVFoundation.framework
       - sdk: CoreMedia.framework
+  # La Actividad en vivo: la frase que suena en la isla dinámica y en la pantalla bloqueada.
+  TKMusicLive:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.2"
+    sources:
+      - path: LiveActivity
+      - path: Shared
+    info:
+      path: LiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: TK-Music
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rprofe358.sonoramobile.live
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: ActivityKit.framework

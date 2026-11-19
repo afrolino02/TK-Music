@@ -191,6 +191,10 @@ final class Store: ObservableObject {
     @Published var lyricsInBar = UserDefaults.standard.object(forKey: "lyrics.bar") as? Bool ?? true {
         didSet { UserDefaults.standard.set(lyricsInBar, forKey: "lyrics.bar") }
     }
+    /// La frase que suena en la isla dinámica y la pantalla bloqueada (apagado hasta que se active).
+    @Published var liveLyrics = UserDefaults.standard.bool(forKey: "lyrics.live") {
+        didSet { UserDefaults.standard.set(liveLyrics, forKey: "lyrics.live") }
+    }
     /// El webhook del canal #tk-music del bot de Discord, o "" si no se configuró.
     @Published var discordWebhook = UserDefaults.standard.string(forKey: "discord.webhook") ?? "" {
         didSet { UserDefaults.standard.set(discordWebhook, forKey: "discord.webhook") }

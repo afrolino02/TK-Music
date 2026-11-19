@@ -514,6 +514,12 @@ struct LookSection: View {
                     Text("La frase que suena aparece encima del visual.").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            Toggle(isOn: $store.liveLyrics) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Letra en la isla y la pantalla bloqueada")
+                    Text("La frase que suena como Actividad en vivo. Empieza al abrir TK-Music con música sonando.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
             Toggle(isOn: $store.lyricsInBar) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Letra en la barra de abajo")
