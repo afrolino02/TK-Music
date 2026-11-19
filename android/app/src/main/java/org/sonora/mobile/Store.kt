@@ -356,6 +356,14 @@ object Store : EngineListener {
         hiddenFolders = preferences.getStringSet("local.hidden", null)?.sorted() ?: emptyList()
         skipWhatsapp = preferences.getBoolean("local.whatsapp", true)
         showRomanized = preferences.getBoolean("lyrics.romanized", true)
+        lyricStyle = runCatching { LyricStyle.valueOf(preferences.getString("lyrics.style", "")!!) }.getOrDefault(LyricStyle.ENFOQUE)
+        lyricBackdrop = runCatching { LyricBackdrop.valueOf(preferences.getString("lyrics.backdrop", "")!!) }.getOrDefault(LyricBackdrop.PORTADA)
+        lyricSize = preferences.getFloat("lyrics.size", 1f)
+        lyricStart = preferences.getBoolean("lyrics.start", false)
+        lyricWhite = preferences.getBoolean("lyrics.white", false)
+        lyricsOnStage = preferences.getBoolean("lyrics.stage", true)
+        lyricsInBar = preferences.getBoolean("lyrics.bar", true)
+        dockEnabled = preferences.getBoolean("dock.enabled", false)
         offlineMode = preferences.getBoolean("offline.mode", false)
         adaptive = preferences.getBoolean("look.adaptive", false)
         ambient = preferences.getBoolean("look.ambient", true)
@@ -506,6 +514,74 @@ object Store : EngineListener {
     fun changeShowRomanized(show: Boolean) {
         showRomanized = show
         preferences.edit().putBoolean("lyrics.romanized", show).apply()
+    }
+
+    // ── Letras ────────────────────────────────────────────────────────────────────────────
+
+    /** Cómo se anima la letra sincronizada. */
+    var lyricStyle by mutableStateOf(LyricStyle.ENFOQUE)
+        private set
+    /** Qué va detrás de la letra. */
+    var lyricBackdrop by mutableStateOf(LyricBackdrop.PORTADA)
+        private set
+    /** El tamaño de la letra: 0,82 chica, 1 normal, 1,2 grande. */
+    var lyricSize by mutableStateOf(1f)
+        private set
+    /** La letra a la izquierda en vez de al centro. */
+    var lyricStart by mutableStateOf(false)
+        private set
+    /** Resaltar en blanco en vez del color de la portada. */
+    var lyricWhite by mutableStateOf(false)
+        private set
+    /** La línea que suena encima de la pantalla completa. */
+    var lyricsOnStage by mutableStateOf(true)
+        private set
+    /** La línea que suena en la barra de abajo, en vez del artista. */
+    var lyricsInBar by mutableStateOf(true)
+        private set
+
+    fun chooseLyricStyle(style: LyricStyle) {
+        lyricStyle = style
+        preferences.edit().putString("lyrics.style", style.name).apply()
+    }
+
+    fun chooseLyricBackdrop(backdrop: LyricBackdrop) {
+        lyricBackdrop = backdrop
+        preferences.edit().putString("lyrics.backdrop", backdrop.name).apply()
+    }
+
+    fun changeLyricSize(size: Float) {
+        lyricSize = size
+        preferences.edit().putFloat("lyrics.size", size).apply()
+    }
+
+    fun changeLyricStart(start: Boolean) {
+        lyricStart = start
+        preferences.edit().putBoolean("lyrics.start", start).apply()
+    }
+
+    fun changeLyricWhite(white: Boolean) {
+        lyricWhite = white
+        preferences.edit().putBoolean("lyrics.white", white).apply()
+    }
+
+    fun changeLyricsOnStage(on: Boolean) {
+        lyricsOnStage = on
+        preferences.edit().putBoolean("lyrics.stage", on).apply()
+    }
+
+    /** El dock flotante sobre otras apps (apagado hasta que se active). */
+    var dockEnabled by mutableStateOf(false)
+        private set
+
+    fun changeDockEnabled(on: Boolean) {
+        dockEnabled = on
+        preferences.edit().putBoolean("dock.enabled", on).apply()
+    }
+
+    fun changeLyricsInBar(on: Boolean) {
+        lyricsInBar = on
+        preferences.edit().putBoolean("lyrics.bar", on).apply()
     }
 
     /** Quita una carpeta de la música: la agregada a mano se olvida, la que halló Android se oculta. */

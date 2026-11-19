@@ -161,6 +161,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.clip
 
 /** Lo que se ve junto a los controles: la letra, la cola o la sesión. */
 private enum class Panel { LYRICS, QUEUE, SESSION }
@@ -272,7 +273,10 @@ fun PlayerScreen(onClose: () -> Unit) {
         if (!wide) StatusBarIcons(dark = tint.light)
         val content by animateColorAsState(if (tint.light) ink else Color.White, tween(600), label = "content")
         MaterialTheme(colorScheme = playerColors(content, tint.light)) {
-          CompositionLocalProvider(LocalContentColor provides content) {
+          CompositionLocalProvider(
+            LocalContentColor provides content,
+            LocalAccent provides ((tint.colors.getOrNull(0) ?: content) to (tint.colors.getOrNull(1) ?: tint.colors.getOrNull(0) ?: content)),
+          ) {
             val state = Store.state
             val track = state?.track
             if (state == null || track == null) {
@@ -456,6 +460,18 @@ private fun Stage(state: PlaybackState, track: TrackItem, glow: Color, depth: Co
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        // la frase que suena, encima de la onda; se aparta cuando aparecen los controles
+        if (Store.lyricsOnStage) {
+            StageLine(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = maxHeight * if (landscape) 0.16f else 0.2f)
+                    .padding(horizontal = 32.dp)
+                    .graphicsLayer { alpha = 1f - controls },
+                big = landscape,
+            )
+        }
         val panel = if (landscape) {
             // de lado: los controles a la derecha, a media altura, entrando desde el borde
             Modifier
@@ -501,7 +517,7 @@ private const val WAVE_POINTS = 24
  * profundidad. Se mueven suavizadas, sin saltos.
  */
 @Composable
-private fun StageWave(color: Color, depth: Color, modifier: Modifier) {
+internal fun StageWave(color: Color, depth: Color, modifier: Modifier) {
     var front by remember { mutableStateOf(FloatArray(0)) }
     var back by remember { mutableStateOf(FloatArray(0)) }
     LaunchedEffect(Unit) {
@@ -973,7 +989,20 @@ private fun LyricsPanel(big: Boolean) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
-    Loader(key = "$slug:${track.id}", load = { it.lyricsFor(slug, track) }) { result -> LyricsBody(result, big) }
+    val (glow, depth) = LocalAccent.current
+    Box(Modifier.fillMaxSize()) {
+        // lo que va detrás de la letra, según Ajustes (la portada desenfocada ya es el fondo del reproductor)
+        when (Store.lyricBackdrop) {
+            LyricBackdrop.PORTADA -> Unit
+            LyricBackdrop.COLOR -> Box(
+                Modifier.matchParentSize().clip(RoundedCornerShape(20.dp))
+                    .background(Brush.verticalGradient(listOf(glow.copy(alpha = 0.55f), depth.copy(alpha = 0.35f)))),
+            )
+            LyricBackdrop.VISUAL -> StageWave(glow, depth, Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.32f))
+        }
+        Loader(key = "$slug:${track.id}", load = { it.lyricsFor(slug, track) }) { result -> LyricsBody(result, big) }
+        LyricStyleChip(Modifier.align(Alignment.TopStart).padding(8.dp))
+    }
 }
 
 /** El botón para mostrar u ocultar la pronunciación, solo si la letra la tiene. */
@@ -991,7 +1020,7 @@ private fun RomanizedToggle(result: LyricsResult, modifier: Modifier = Modifier)
 @Composable
 private fun LyricsBody(result: LyricsResult?, big: Boolean) {
     when {
-        result != null && result.lines.isNotEmpty() && result.synced -> SyncedLyrics(result, big)
+        result != null && result.lines.isNotEmpty() && result.synced -> StyledLyrics(result, big) { SyncedLyrics(result, big) }
         result != null && result.lines.isNotEmpty() -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
             item { RomanizedToggle(result, Modifier.padding(bottom = 12.dp)) }
             item {
@@ -1043,7 +1072,9 @@ private fun SyncedLyrics(result: LyricsResult, big: Boolean) {
     var anchor by remember { mutableStateOf(0L to 0L) }
     LaunchedEffect(reported, playing) { anchor = reported to SystemClock.uptimeMillis() }
     var tick by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
-    val worded = remember(result) { result.lines.any { it.words.isNotEmpty() } }
+    // las palabras con tiempos (o repartidas en la línea), para encenderlas al cantarse
+    val timed = remember(result) { result.lines.mapIndexed { i, line -> timedWords(line, result.lines.getOrNull(i + 1)) } }
+    val worded = true
     LaunchedEffect(playing, worded) {
         while (playing) {
             tick = SystemClock.uptimeMillis()
@@ -1079,7 +1110,7 @@ private fun SyncedLyrics(result: LyricsResult, big: Boolean) {
                 LyricLine(
                     text = line.text,
                     romanized = line.romanized?.takeIf { Store.showRomanized },
-                    words = line.words,
+                    words = timed[index],
                     position = if (index == active) position else 0L,
                     current = index == active,
                     distance = if (active < 0) 99 else abs(index - active),
@@ -1122,7 +1153,8 @@ private fun LyricLine(
         tween(durationMillis = 700, easing = FastOutSlowInEasing),
         label = "lyric-blur",
     )
-    val size = if (big) 38f else 28f
+    val size = (if (big) 38f else 28f) * Store.lyricSize
+    val start = Store.lyricStart
     val blurred = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blur > 0.2.dp
     val glow = LocalContentColor.current
     // Karaoke: en la línea que suena, las palabras ya cantadas se encienden y las demás esperan.
@@ -1147,9 +1179,10 @@ private fun LyricLine(
                 scaleX = scale
                 scaleY = scale
                 alpha = fade
-                transformOrigin = TransformOrigin(0f, 0.5f)
+                transformOrigin = TransformOrigin(if (start) 0f else 0.5f, 0.5f)
             }
             .then(if (blurred) Modifier.blur(blur, BlurredEdgeTreatment.Unbounded) else Modifier),
+        horizontalAlignment = if (start) Alignment.Start else Alignment.CenterHorizontally,
     ) {
         Text(
             shown,
@@ -1157,6 +1190,7 @@ private fun LyricLine(
             lineHeight = (size * 1.25f).sp,
             fontWeight = FontWeight.Bold,
             color = LocalContentColor.current,
+            textAlign = if (start) TextAlign.Start else TextAlign.Center,
         )
         // la pronunciación, más pequeña, debajo de la línea en otro sistema de escritura
         if (romanized != null) {
@@ -1166,6 +1200,7 @@ private fun LyricLine(
                 lineHeight = (size * 0.7f).sp,
                 fontWeight = FontWeight.Medium,
                 color = LocalContentColor.current.copy(alpha = 0.75f),
+                textAlign = if (start) TextAlign.Start else TextAlign.Center,
             )
         }
     }

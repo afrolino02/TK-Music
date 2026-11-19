@@ -275,11 +275,9 @@ private fun MiniPlayer(track: TrackItem, state: PlaybackState, onOpen: () -> Uni
                 Cover(track.cover, 44.dp)
                 Column(Modifier.weight(1f)) {
                     Text(track.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
+                    BarLine(
                         if (state.remote) "En la sesión · ${track.artists}" else track.artists,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        playing = state.status == Status.PLAYING,
                     )
                 }
                 IconButton(onClick = { Store.engine.previous() }) { Icon(Icons.Filled.SkipPrevious, "Anterior") }

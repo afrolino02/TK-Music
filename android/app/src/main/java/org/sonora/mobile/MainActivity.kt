@@ -56,6 +56,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // el dock flotante solo se ve con TK-Music en segundo plano
+    override fun onStart() {
+        super.onStart()
+        Dock.hide(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) Dock.show(this)
+    }
+
     /**
      * Al salir con «atrás»: en TV (sin notificación desde donde pararla) Sonora se cierra del
      * todo; en el teléfono sigue sonando si había música, y si no, se cierra.
@@ -66,7 +77,10 @@ class MainActivity : ComponentActivity() {
         val tv = !packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN) ||
             packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
         val playing = Store.state?.status.let { it == Status.PLAYING || it == Status.LOADING }
-        if (tv || !playing) Store.shutdown()
+        if (tv || !playing) {
+            Dock.hide(this)
+            Store.shutdown()
+        }
     }
 }
 

@@ -280,6 +280,7 @@ private fun LookSection() {
             "En el reproductor, los colores de la portada se mueven despacio en el fondo.",
             Store.ambient,
         ) { Store.changeAmbient(it) }
+        LyricsLook()
         Text("Visualizador", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             VisualizerStyle.entries.forEach { style ->
@@ -290,6 +291,53 @@ private fun LookSection() {
                 )
             }
         }
+    }
+}
+
+/** Una fila de opciones como fichas, con la elegida marcada. */
+@Composable
+private fun <T> Chips(title: String, options: List<T>, chosen: T, label: (T) -> String, pick: (T) -> Unit) {
+    Text(title, style = MaterialTheme.typography.labelLarge)
+    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(options) { option ->
+            androidx.compose.material3.FilterChip(
+                selected = option == chosen,
+                onClick = { pick(option) },
+                label = { Text(label(option)) },
+                modifier = Modifier.focusRing(),
+            )
+        }
+    }
+}
+
+/** Cómo se ve la letra: el estilo, el fondo, el tamaño, la alineación y dónde aparece. */
+@Composable
+private fun LyricsLook() {
+    Chips("Estilo de la letra", LyricStyle.entries, Store.lyricStyle, { it.label }) { Store.chooseLyricStyle(it) }
+    Chips("Fondo de la letra", LyricBackdrop.entries, Store.lyricBackdrop, { it.label }) { Store.chooseLyricBackdrop(it) }
+    Chips("Tamaño de la letra", listOf(0.82f, 1f, 1.2f), Store.lyricSize, { when (it) { 0.82f -> "Chica"; 1f -> "Normal"; else -> "Grande" } }) { Store.changeLyricSize(it) }
+    Chips("Alineación de la letra", listOf(false, true), Store.lyricStart, { if (it) "Izquierda" else "Centro" }) { Store.changeLyricStart(it) }
+    Chips("Resaltado", listOf(false, true), Store.lyricWhite, { if (it) "Blanco" else "Color de la portada" }) { Store.changeLyricWhite(it) }
+    LookSwitch(
+        "Letra en pantalla completa",
+        "La frase que suena aparece encima del visual en la pantalla completa.",
+        Store.lyricsOnStage,
+    ) { Store.changeLyricsOnStage(it) }
+    LookSwitch(
+        "Letra en la barra de abajo",
+        "El mini reproductor muestra la frase que suena en vez del artista.",
+        Store.lyricsInBar,
+    ) { Store.changeLyricsInBar(it) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LookSwitch(
+        "Dock flotante",
+        "Una barra chica encima de las otras apps con la frase que suena; tócala para ver los controles. " +
+            "Se puede arrastrar y no se ve con TK-Music abierta ni en pausa." +
+            if (Store.dockEnabled && !Dock.allowed(context)) " Falta darle el permiso «Mostrar sobre otras apps»." else "",
+        Store.dockEnabled,
+    ) {
+        Store.changeDockEnabled(it)
+        if (it && !Dock.allowed(context)) Dock.askPermission(context)
     }
 }
 
