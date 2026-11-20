@@ -176,9 +176,18 @@ private fun highlight(): Color {
     if (Store.lyricWhite) return content
     val accent = LocalAccent.current.first
     val darkBackground = content.luminance() > 0.5f
+    // sobre fondo oscuro siempre un tono claro, aunque la portada sea oscura
     return when {
-        darkBackground && accent.luminance() < 0.35f -> lerp(accent, Color.White, 0.45f)
-        !darkBackground && accent.luminance() > 0.55f -> lerp(accent, Color.Black, 0.45f)
+        darkBackground -> {
+            var light = accent
+            var step = 0
+            while (light.luminance() < 0.5f && step < 6) {
+                light = lerp(light, Color.White, 0.25f)
+                step++
+            }
+            light
+        }
+        accent.luminance() > 0.55f -> lerp(accent, Color.Black, 0.45f)
         else -> accent
     }
 }

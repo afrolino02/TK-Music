@@ -19,6 +19,8 @@ const POP: Duration = Duration::from_millis(380);
 const CHAT_KEPT: usize = 6;
 /// How long before a line the chat shows someone typing.
 const TYPING: Duration = Duration::from_millis(1100);
+/// The least lightness of the highlight on a dark theme.
+const LIT_LIGHTNESS: f32 = 0.74;
 /// How many letters a line has before it starts to shrink to fit.
 const FIT_FROM: f32 = 26.;
 /// How many letters past that halve it again.
@@ -107,9 +109,17 @@ pub(super) fn render(style: LyricStyle, frame: &Frame) -> AnyElement {
     }
 }
 
-/// The colour that marks what has been sung: the cover's, or the theme's accent.
+/// The colour that marks what has been sung: the cover's, or the theme's accent, always light on a
+/// dark theme so a dark cover still gives a highlight that reads.
 fn lit(theme: &ui::Theme) -> Hsla {
-    theme.tint.unwrap_or(theme.primary)
+    let color = theme.tint.unwrap_or(theme.primary);
+    match theme.background.l < 0.5 {
+        true => Hsla {
+            l: color.l.max(LIT_LIGHTNESS),
+            ..color
+        },
+        false => color,
+    }
 }
 
 fn active(lines: &[LyricsLine], position: Duration) -> Option<usize> {
@@ -558,9 +568,11 @@ fn chat(frame: &Frame) -> AnyElement {
 
 /// The text colour of a chat bubble, on the accent when it is the chorus's side.
 fn ink(theme: &ui::Theme, out: bool) -> Hsla {
-    match out {
-        true => theme.primary_foreground,
-        false => theme.foreground,
+    match (out, theme.background.l < 0.5) {
+        // the highlight is light there, so the page's own dark colour reads on it
+        (true, true) => theme.background,
+        (true, false) => theme.primary_foreground,
+        (false, _) => theme.foreground,
     }
 }
 

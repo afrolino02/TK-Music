@@ -12,6 +12,8 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ## [Sin publicar]
 
+## [1.0.26] — 2026-11-19
+
 ### Nuevo
 
 - Letras con estilo (Android): Enfoque, Karaoke, Cinemática, Palabra por palabra, Máquina de escribir y Chat. Se eligen en Ajustes o con el botón de arriba en la pantalla de letras.
@@ -30,6 +32,9 @@ cambios de Sonora están en [CHANGELOG-SONORA.md](CHANGELOG-SONORA.md).
 
 ### Cambios
 
+- El resaltado de la letra siempre va en un tono claro sobre fondo oscuro, para que se lea aunque la portada sea oscura.
+- Chat en el iPad: los mensajes quedan en el centro de la pantalla, no abajo.
+- iPhone: con el Anillo, el Vinilo y los visuales que rodean la portada, el visual se mueve junto con ella cuando hace sitio a los controles.
 - Visuales: con el Anillo y el Vinilo la portada va redonda en el centro (en el celular, con el Vinilo gira como el disco). El Borde se ondula como una ola que se hace más honda con el bajo, y ya no se corta en las esquinas.
 - Pantalla completa (iPhone y Android): la portada queda justo en el centro, con el título debajo.
 - Letras en el PC: el Chat es más vivo (cada mensaje llega con un rebote, las palabras aparecen suaves y los demás suben con calma); Cinemática y Máquina de escribir ya no cortan las frases largas.

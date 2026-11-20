@@ -119,7 +119,15 @@ private struct Highlight {
     let store: Store
     let accent: LyricAccent
     let light: Bool
-    var color: Color { store.lyricWhite ? (light ? .black : .white) : accent.glow }
+    var color: Color { store.lyricWhite ? (light ? .black : .white) : (light ? accent.glow : lightened(accent.glow)) }
+}
+
+/// Un tono claro del color, para que el resaltado se lea sobre el fondo oscuro aunque la portada
+/// sea oscura.
+func lightened(_ color: Color) -> Color {
+    var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+    guard UIColor(color).getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else { return color }
+    return Color(hue: Double(hue), saturation: Double(min(saturation, 0.55)), brightness: Double(max(brightness, 0.95)))
 }
 
 /// La letra sincronizada con el estilo elegido en Ajustes. Enfoque es la lista de siempre.
@@ -473,11 +481,13 @@ private struct ChatView: View {
                 TypingBubble().transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottomLeading)))
             }
         }
+        // una ventana de chat de alto fijo en el centro de la pantalla (también en el iPad), con
+        // los mensajes nuevos abajo
         .frame(maxWidth: 460)
+        .frame(maxHeight: 440, alignment: .bottom)
+        .clipped()
         .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .padding(.bottom, 80)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.45, dampingFraction: 0.62), value: shown)
         .animation(.easeOut(duration: 0.25), value: typing)
     }
@@ -636,7 +646,7 @@ struct StageLine: View {
                     ZStack {
                         if let active, !result.lines[active].text.isEmpty {
                             let next = result.lines.indices.contains(active + 1) ? result.lines[active + 1] : nil
-                            painted(timedWords(result.lines[active], next: next), position, lit: store.lyricWhite ? .white : accent.glow, dim: .primary.opacity(0.55))
+                            painted(timedWords(result.lines[active], next: next), position, lit: store.lyricWhite ? .white : lightened(accent.glow), dim: .primary.opacity(0.55))
                                 .font(.system(size: 26 * store.lyricSize * (big ? 1.2 : 1), weight: .heavy))
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)

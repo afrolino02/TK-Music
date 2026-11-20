@@ -219,7 +219,8 @@ struct PlayerView: View {
                     glow: stageGlow ?? fg,
                     depth: stageDepth ?? stageGlow ?? fg,
                     spectrum: spectrum,
-                    cover: coverFrame
+                    cover: coverFrame,
+                    shift: CGSize(width: aside, height: lift)
                 )
                 .task { await spectrum.listen(store.engine) }
             }

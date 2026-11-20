@@ -155,6 +155,8 @@ private func mix(_ a: Color, _ b: Color, _ t: Double) -> Color {
 extension VisualStyle {
     /// Con el Anillo y el Vinilo la portada va redonda, en el centro de lo que la rodea.
     var roundCover: Bool { self == .anillo || self == .vinilo }
+    /// Los visuales que se dibujan alrededor de la portada y se mueven con ella.
+    var circlesCover: Bool { [.anillo, .vinilo, .pulso, .electricidad, .particulas].contains(self) }
 }
 
 /// Cuánto ha girado la portada en el Vinilo, en grados, a la vuelta del disco.
@@ -177,6 +179,9 @@ struct StageVisual: View {
     let depth: Color
     let spectrum: Spectrum
     let cover: CGRect
+    /// Cuánto está corrida la portada ahora (al hacer sitio a los controles). Los visuales que la
+    /// rodean se dibujan donde descansa y se corren con ella en la misma animación, juntos.
+    var shift: CGSize = .zero
     @State private var memory = VisualMemory()
     @State private var start = Date()
 
@@ -184,9 +189,10 @@ struct StageVisual: View {
         GeometryReader { geometry in
             // el lienzo y la portada, en las mismas coordenadas
             let origin = geometry.frame(in: .global).origin
+            let moved = style.circlesCover ? shift : .zero
             let focus = cover.isEmpty
                 ? CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                : CGPoint(x: cover.midX - origin.x, y: cover.midY - origin.y)
+                : CGPoint(x: cover.midX - moved.width - origin.x, y: cover.midY - moved.height - origin.y)
             let side = cover.isEmpty ? min(geometry.size.width, geometry.size.height) * 0.6 : cover.width
             TimelineView(.animation) { timeline in
                 Canvas { context, size in
@@ -206,6 +212,7 @@ struct StageVisual: View {
             }
         }
         .ignoresSafeArea()
+        .offset(style.circlesCover ? shift : .zero)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
