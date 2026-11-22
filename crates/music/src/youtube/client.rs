@@ -10,9 +10,9 @@ use ytmusic::YtMusic;
 use crate::cover::{self, CoverLimits};
 use crate::youtube::{genres, radio, subscriptions, wire};
 use crate::{
-    Album, AlbumCatalogue, AlbumDetail, Artist, ArtistCatalogue, ArtistProfile, Feed, Genre,
-    GenreDetail, HomeFeed, MediaKind, MusicApi, Playlist, PlaylistDetail, SUGGESTIONS, SavedArtist,
-    Track, UserProfile, escape,
+    Album, AlbumCatalogue, AlbumDetail, Artist, ArtistCatalogue, ArtistProfile, CoverSize, Feed,
+    Genre, GenreDetail, HomeFeed, MediaKind, MusicApi, Playlist, PlaylistDetail, SUGGESTIONS,
+    SavedArtist, Track, UserProfile, escape,
 };
 
 const PORTRAIT_LIMIT: usize = 24;
@@ -66,6 +66,10 @@ impl YouTubeClient {
 
 #[async_trait]
 impl MusicApi for YouTubeClient {
+    fn cover_at(&self, cover: &str, size: CoverSize) -> Option<String> {
+        wire::cover_at(cover, size)
+    }
+
     fn share_url(&self, kind: MediaKind, id: &str) -> Option<String> {
         let id = escape::component(id);
         let url = match kind {
@@ -541,7 +545,10 @@ pub(crate) fn library_playlist(source: ytmusic::Playlist, account: &str) -> Opti
 /// Whether YouTube made playlist `id` itself (liked songs, mixes, albums, episodes), so nobody
 /// can add to it.
 fn generated(id: &str) -> bool {
-    id == "LM" || ["RD", "OLAK", "SE", "LL", "WL"].iter().any(|prefix| id.starts_with(prefix))
+    id == "LM"
+        || ["RD", "OLAK", "SE", "LL", "WL"]
+            .iter()
+            .any(|prefix| id.starts_with(prefix))
 }
 
 /// Swaps every music video for the song YouTube Music pairs with it, as `swap_playable` does, and
