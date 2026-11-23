@@ -1030,7 +1030,7 @@ struct AlbumView: View {
         Loader(key: id, load: { try $0.album(slug: slug, id: id) }) { page in
             List {
                 VStack(spacing: 8) {
-                    Cover(url: page.album.coverLarge, size: 220)
+                    Cover(url: page.album.coverLarge ?? page.album.cover, size: 220)
                         .shadow(radius: 8, y: 4)
                     Text(page.album.title)
                         .font(.title3.bold())
@@ -1050,7 +1050,7 @@ struct AlbumView: View {
                 .frame(maxWidth: .infinity)
                 .listRowSeparator(.hidden)
                 PlayButtons(tracks: page.tracks, slug: slug)
-                TrackList(tracks: page.tracks, slug: slug, numbered: true, covers: false)
+                TrackList(tracks: page.tracks, slug: slug, numbered: true, covers: true)
                 if !page.label.isEmpty || !page.releaseDate.isEmpty {
                     Text([page.releaseDate, page.label].filter { !$0.isEmpty }.joined(separator: " · "))
                         .font(.footnote)
