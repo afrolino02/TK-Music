@@ -771,7 +771,7 @@ fun AlbumScreen(slug: String, id: String) {
             }
             LazyColumn(Modifier.fillMaxSize()) {
                 item {
-                    Header(page.album.coverLarge, page.album.title) {
+                    Header(page.album.coverLarge ?: page.album.cover, page.album.title) {
                         val artist = page.album.artistId
                         TextButton(onClick = { artist?.let { nav.navigate(Routes.artist(slug, it)) } }, enabled = artist != null) {
                             Text(page.album.artists)
@@ -780,7 +780,7 @@ fun AlbumScreen(slug: String, id: String) {
                     }
                 }
                 item { PlayButtons(page.tracks, slug) }
-                trackItems(page.tracks, slug, numbered = true, covers = false)
+                trackItems(page.tracks, slug, numbered = true, covers = true)
                 val footer = listOf(page.releaseDate, page.label).filter { it.isNotEmpty() }.joinToString(" · ")
                 if (footer.isNotEmpty()) {
                     item { Text(footer, Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall) }
